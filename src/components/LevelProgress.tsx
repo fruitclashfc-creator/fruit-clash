@@ -34,12 +34,16 @@ const LEVEL_REQUIREMENTS = [
 const MAX_LEVEL = 20;
 
 export const calculateLevel = (totalWins: number): number => {
-  for (let i = LEVEL_REQUIREMENTS.length - 1; i >= 0; i--) {
+  // Find the highest level where wins meet the requirement
+  let level = 1;
+  for (let i = 0; i < LEVEL_REQUIREMENTS.length; i++) {
     if (totalWins >= LEVEL_REQUIREMENTS[i]) {
-      return Math.min(i + 1, MAX_LEVEL);
+      level = i + 1;
+    } else {
+      break;
     }
   }
-  return 1;
+  return Math.min(level, MAX_LEVEL);
 };
 
 export const getWinsForLevel = (level: number): number => {
