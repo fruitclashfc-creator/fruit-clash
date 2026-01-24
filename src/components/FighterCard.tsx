@@ -55,7 +55,8 @@ export const FighterCard = ({ fighter, isSelected, onClick, size = 'md' }: Fight
           </h3>
           <span className={cn(
             'uppercase font-bold text-xs',
-            fighter.rarity === 'legendary' && 'text-game-legendary',
+            fighter.rarity === 'legendary' && 'text-pink-400',
+            fighter.rarity === 'mythic' && 'text-game-legendary',
             fighter.rarity === 'epic' && 'text-game-epic',
             fighter.rarity === 'rare' && 'text-game-rare',
             fighter.rarity === 'common' && 'text-game-common'
