@@ -55,7 +55,7 @@ export const ModeSelectScreen = ({ onStartBattle, onNavigate }: ModeSelectScreen
 
           {/* Multiplayer Mode */}
           <div 
-            onClick={() => onStartBattle(false)}
+            onClick={() => onNavigate('multiplayer')}
             className="group cursor-pointer bg-card/80 backdrop-blur-sm rounded-2xl p-6 border-2 border-muted hover:border-secondary transition-all hover:box-glow-purple"
           >
             <div className="flex items-center gap-4">
@@ -72,7 +72,7 @@ export const ModeSelectScreen = ({ onStartBattle, onNavigate }: ModeSelectScreen
             </div>
             <div className="mt-4 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-game-health animate-pulse" />
-              <span className="text-xs text-muted-foreground">42 players online</span>
+              <span className="text-xs text-muted-foreground">See who's online</span>
             </div>
           </div>
         </div>

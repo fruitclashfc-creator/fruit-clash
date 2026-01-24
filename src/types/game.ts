@@ -100,4 +100,4 @@ export interface BattleState {
   selectedFighterIndex: number | null;
 }
 
-export type GameScreen = 'lobby' | 'fighters' | 'team-select' | 'battle' | 'settings' | 'mode-select';
+export type GameScreen = 'lobby' | 'fighters' | 'team-select' | 'battle' | 'settings' | 'mode-select' | 'multiplayer';

@@ -6,6 +6,7 @@ import { ModeSelectScreen } from '@/components/screens/ModeSelectScreen';
 import { TeamSelectScreen } from '@/components/screens/TeamSelectScreen';
 import { BattleScreen } from '@/components/screens/BattleScreen';
 import { SettingsScreen } from '@/components/screens/SettingsScreen';
+import { MultiplayerScreen } from '@/components/screens/MultiplayerScreen';
 import { LevelUpNotification } from '@/components/LevelUpNotification';
 import { useBattle } from '@/hooks/useBattle';
 import { useAuth } from '@/hooks/useAuth';
@@ -64,6 +65,13 @@ const Index = () => {
 
   const handleStartModeSelect = useCallback((vsBot: boolean) => {
     setIsVsBot(vsBot);
+    setCurrentScreen('team-select');
+  }, []);
+
+  const handleStartMultiplayerMatch = useCallback((opponentId: string, opponentName: string) => {
+    // For now, multiplayer matches work like bot matches
+    // In a full implementation, you'd sync with the opponent
+    setIsVsBot(false);
     setCurrentScreen('team-select');
   }, []);
 
@@ -194,6 +202,13 @@ const Index = () => {
             onNavigate={handleNavigate}
             onRestart={restartBattle}
             onVictory={handleVictory}
+          />
+        )}
+
+        {currentScreen === 'multiplayer' && (
+          <MultiplayerScreen 
+            onNavigate={handleNavigate}
+            onStartMultiplayerMatch={handleStartMultiplayerMatch}
           />
         )}
         

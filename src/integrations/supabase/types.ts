@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      game_invitations: {
+        Row: {
+          created_at: string
+          from_user_id: string
+          from_user_name: string
+          id: string
+          status: string
+          to_user_id: string
+          to_user_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          from_user_id: string
+          from_user_name: string
+          id?: string
+          status?: string
+          to_user_id: string
+          to_user_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          from_user_id?: string
+          from_user_name?: string
+          id?: string
+          status?: string
+          to_user_id?: string
+          to_user_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      online_players: {
+        Row: {
+          created_at: string
+          id: string
+          last_seen: string
+          level: number
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_seen?: string
+          level?: number
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_seen?: string
+          level?: number
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
