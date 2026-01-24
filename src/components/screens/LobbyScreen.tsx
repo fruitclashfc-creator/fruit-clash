@@ -1,14 +1,15 @@
 import { GameButton } from '@/components/ui/game-button';
 import { Player, GameScreen } from '@/types/game';
-import { Swords, Bot, Users, Settings, Trophy } from 'lucide-react';
+import { Swords, Bot, Users, Settings, LogOut } from 'lucide-react';
 import { LevelProgress } from '@/components/LevelProgress';
 
 interface LobbyScreenProps {
   player: Player;
   onNavigate: (screen: GameScreen) => void;
+  onLogout?: () => void;
 }
 
-export const LobbyScreen = ({ player, onNavigate }: LobbyScreenProps) => {
+export const LobbyScreen = ({ player, onNavigate, onLogout }: LobbyScreenProps) => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-between p-4 pb-8 animate-slide-up">
       {/* Header */}
@@ -27,11 +28,17 @@ export const LobbyScreen = ({ player, onNavigate }: LobbyScreenProps) => {
             </div>
           </div>
 
-          {/* Trophies */}
-          <div className="flex items-center gap-2 bg-muted rounded-xl px-4 py-2">
-            <Trophy className="w-5 h-5 text-game-legendary" />
-            <span className="font-game-heading text-lg text-game-legendary">{player.trophies}</span>
-          </div>
+          {/* Logout button */}
+          {onLogout && (
+            <GameButton 
+              variant="ghost" 
+              size="icon"
+              onClick={onLogout}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="w-5 h-5" />
+            </GameButton>
+          )}
         </div>
 
         {/* Level Progress */}

@@ -1,26 +1,55 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LobbyScreen } from '@/components/screens/LobbyScreen';
 import { FightersScreen } from '@/components/screens/FightersScreen';
 import { ModeSelectScreen } from '@/components/screens/ModeSelectScreen';
 import { TeamSelectScreen } from '@/components/screens/TeamSelectScreen';
 import { BattleScreen } from '@/components/screens/BattleScreen';
 import { SettingsScreen } from '@/components/screens/SettingsScreen';
+import { LevelUpPopup } from '@/components/LevelUpPopup';
 import { useBattle } from '@/hooks/useBattle';
+import { useAuth } from '@/hooks/useAuth';
 import { Player, GameScreen, FruitFighter } from '@/types/game';
 import { calculateLevel } from '@/components/LevelProgress';
+import { Loader2 } from 'lucide-react';
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { user, profile, loading: authLoading, updateProfile, signOut } = useAuth();
+  
   const [currentScreen, setCurrentScreen] = useState<GameScreen>('lobby');
   const [isVsBot, setIsVsBot] = useState(true);
+  const [levelUpData, setLevelUpData] = useState<{ previousLevel: number; newLevel: number } | null>(null);
+  
   const [player, setPlayer] = useState<Player>({
     id: 'player-1',
     name: 'Champion',
-    trophies: 1250,
+    trophies: 0,
     level: 1,
     totalWins: 0,
     selectedTeam: [],
     fighters: [],
   });
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/auth', { replace: true });
+    }
+  }, [authLoading, user, navigate]);
+
+  // Sync player state with profile
+  useEffect(() => {
+    if (profile) {
+      setPlayer(prev => ({
+        ...prev,
+        id: profile.user_id,
+        name: profile.name,
+        level: profile.level,
+        totalWins: profile.total_wins,
+      }));
+    }
+  }, [profile]);
 
   const { 
     battleState, 
@@ -51,20 +80,55 @@ const Index = () => {
     setCurrentScreen(screen);
   }, []);
 
-  const handleVictory = useCallback(() => {
-    setPlayer(prev => {
-      const newTotalWins = prev.totalWins + 1;
-      const newLevel = calculateLevel(newTotalWins);
-      const newTrophies = prev.trophies + 30; // Award trophies on win
-      
-      return {
-        ...prev,
-        totalWins: newTotalWins,
-        level: newLevel,
-        trophies: newTrophies,
-      };
+  const handleVictory = useCallback(async () => {
+    const previousLevel = player.level;
+    const newTotalWins = player.totalWins + 1;
+    const newLevel = calculateLevel(newTotalWins);
+    
+    // Update local state
+    setPlayer(prev => ({
+      ...prev,
+      totalWins: newTotalWins,
+      level: newLevel,
+    }));
+
+    // Update database
+    await updateProfile({
+      total_wins: newTotalWins,
+      level: newLevel,
     });
+
+    // Show level up popup if leveled up
+    if (newLevel > previousLevel) {
+      setLevelUpData({ previousLevel, newLevel });
+    }
+  }, [player.level, player.totalWins, updateProfile]);
+
+  const handleLogout = useCallback(async () => {
+    await signOut();
+    navigate('/auth', { replace: true });
+  }, [signOut, navigate]);
+
+  const handleCloseLevelUp = useCallback(() => {
+    setLevelUpData(null);
   }, []);
+
+  // Show loading state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground font-game-heading">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
@@ -84,12 +148,22 @@ const Index = () => {
         ))}
       </div>
 
+      {/* Level Up Popup */}
+      {levelUpData && (
+        <LevelUpPopup
+          previousLevel={levelUpData.previousLevel}
+          newLevel={levelUpData.newLevel}
+          onClose={handleCloseLevelUp}
+        />
+      )}
+
       {/* Screen content */}
       <div className="relative z-10">
         {currentScreen === 'lobby' && (
           <LobbyScreen 
             player={player} 
-            onNavigate={handleNavigate} 
+            onNavigate={handleNavigate}
+            onLogout={handleLogout}
           />
         )}
         
