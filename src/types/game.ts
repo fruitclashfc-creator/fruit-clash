@@ -18,7 +18,7 @@ export type FruitType =
   | 'dough'
   | 'soul';
 
-export type Rarity = 'common' | 'rare' | 'epic' | 'legendary' | 'mythic';
+export type Rarity = 'common' | 'rare' | 'epic' | 'mythic' | 'legendary';
 
 export type AbilityType = 'attack' | 'defense' | 'special';
 

@@ -234,12 +234,12 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     color: 'from-pink-300 to-pink-500',
   },
 
-  // Legendary Tier
+  // Mythic Tier
   {
     id: 'magma',
     name: 'Magma',
     fruitType: 'magma',
-    rarity: 'legendary',
+    rarity: 'mythic',
     health: 130,
     maxHealth: 130,
     attack: 40,
@@ -257,7 +257,7 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     id: 'buddha',
     name: 'Buddha',
     fruitType: 'buddha',
-    rarity: 'legendary',
+    rarity: 'mythic',
     health: 150,
     maxHealth: 150,
     attack: 25,
@@ -275,7 +275,7 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     id: 'phoenix',
     name: 'Phoenix',
     fruitType: 'phoenix',
-    rarity: 'legendary',
+    rarity: 'mythic',
     health: 110,
     maxHealth: 110,
     attack: 35,
@@ -290,12 +290,12 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     color: 'from-blue-400 to-cyan-600',
   },
 
-  // Mythic Tier
+  // Legendary Tier (highest)
   {
     id: 'dragon',
     name: 'Dragon',
     fruitType: 'dragon',
-    rarity: 'mythic',
+    rarity: 'legendary',
     health: 140,
     maxHealth: 140,
     attack: 45,
@@ -313,7 +313,7 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     id: 'leopard',
     name: 'Leopard',
     fruitType: 'leopard',
-    rarity: 'mythic',
+    rarity: 'legendary',
     health: 125,
     maxHealth: 125,
     attack: 48,
@@ -331,7 +331,7 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     id: 'soul',
     name: 'Soul',
     fruitType: 'soul',
-    rarity: 'mythic',
+    rarity: 'legendary',
     health: 135,
     maxHealth: 135,
     attack: 42,
@@ -359,9 +359,9 @@ export const getRandomTeam = (size: number = 6): FruitFighter[] => {
 
 export const getRarityColor = (rarity: string): string => {
   switch (rarity) {
-    case 'mythic':
-      return 'text-pink-400 border-pink-400';
     case 'legendary':
+      return 'text-pink-400 border-pink-400';
+    case 'mythic':
       return 'text-game-legendary border-game-legendary';
     case 'epic':
       return 'text-game-epic border-game-epic';
