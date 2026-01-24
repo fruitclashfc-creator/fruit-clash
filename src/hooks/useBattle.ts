@@ -139,9 +139,9 @@ export const useBattle = () => {
     const defense = target.fighter.defense;
     const actualDamage = Math.max(5, damage - Math.floor(defense * 0.3) + Math.floor(Math.random() * 10 - 5));
     
-    // Apply shield reduction if target has shield or defender was used
+    // Apply shield - completely blocks damage if target has shield or defender was used
     const hasDefense = target.fighter.hasShield || useDefender !== undefined;
-    const finalDamage = hasDefense ? Math.floor(actualDamage * 0.5) : actualDamage;
+    const finalDamage = hasDefense ? 0 : actualDamage;
     
     const newHealth = Math.max(0, target.currentHealth - finalDamage);
     const wasKilled = newHealth === 0 && target.isAlive;
