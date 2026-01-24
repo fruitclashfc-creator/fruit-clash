@@ -1,33 +1,13 @@
 import { GameButton } from '@/components/ui/game-button';
-import { GameScreen, FruitFighter } from '@/types/game';
+import { GameScreen } from '@/types/game';
 import { ArrowLeft, Bot, Users, Swords, Zap } from 'lucide-react';
 
 interface ModeSelectScreenProps {
-  selectedFighter: FruitFighter | null;
   onStartBattle: (vsBot: boolean) => void;
   onNavigate: (screen: GameScreen) => void;
 }
 
-export const ModeSelectScreen = ({ selectedFighter, onStartBattle, onNavigate }: ModeSelectScreenProps) => {
-  if (!selectedFighter) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4 animate-slide-up">
-        <div className="text-center">
-          <span className="text-6xl mb-4 block">⚠️</span>
-          <h2 className="font-game-title text-2xl text-foreground mb-4">
-            No Fighter Selected
-          </h2>
-          <p className="text-muted-foreground mb-6">
-            Choose a fighter before entering battle!
-          </p>
-          <GameButton variant="primary" onClick={() => onNavigate('fighters')}>
-            Choose Fighter
-          </GameButton>
-        </div>
-      </div>
-    );
-  }
-
+export const ModeSelectScreen = ({ onStartBattle, onNavigate }: ModeSelectScreenProps) => {
   return (
     <div className="min-h-screen flex flex-col p-4 animate-slide-up">
       {/* Header */}
@@ -40,18 +20,11 @@ export const ModeSelectScreen = ({ selectedFighter, onStartBattle, onNavigate }:
         </h1>
       </div>
 
-      {/* Selected Fighter Display */}
-      <div className="flex justify-center mb-8">
-        <div className="relative">
-          <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-card to-muted border-2 border-primary flex items-center justify-center box-glow-orange">
-            <span className="text-5xl animate-float">{selectedFighter.emoji}</span>
-          </div>
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-primary px-3 py-1 rounded-lg">
-            <span className="font-game-heading text-xs text-primary-foreground">
-              {selectedFighter.name}
-            </span>
-          </div>
-        </div>
+      {/* Mode Info */}
+      <div className="text-center mb-8">
+        <p className="text-muted-foreground">
+          Choose your battle mode. You'll select your team of 6 fighters next!
+        </p>
       </div>
 
       {/* Mode Selection */}

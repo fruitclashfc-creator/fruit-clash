@@ -2,29 +2,20 @@ import { useState } from 'react';
 import { FighterCard } from '@/components/FighterCard';
 import { GameButton } from '@/components/ui/game-button';
 import { HealthBar } from '@/components/HealthBar';
-import { FRUIT_FIGHTERS } from '@/data/fighters';
+import { FRUIT_FIGHTERS, getRarityColor } from '@/data/fighters';
 import { FruitFighter, GameScreen } from '@/types/game';
 import { ArrowLeft, Sword, Shield, Zap, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface FightersScreenProps {
-  selectedFighter: FruitFighter | null;
-  onSelectFighter: (fighter: FruitFighter) => void;
   onNavigate: (screen: GameScreen) => void;
 }
 
-export const FightersScreen = ({ selectedFighter, onSelectFighter, onNavigate }: FightersScreenProps) => {
-  const [previewFighter, setPreviewFighter] = useState<FruitFighter | null>(selectedFighter);
+export const FightersScreen = ({ onNavigate }: FightersScreenProps) => {
+  const [previewFighter, setPreviewFighter] = useState<FruitFighter | null>(FRUIT_FIGHTERS[0]);
 
   const handleSelect = (fighter: FruitFighter) => {
     setPreviewFighter(fighter);
-  };
-
-  const handleConfirm = () => {
-    if (previewFighter) {
-      onSelectFighter(previewFighter);
-      onNavigate('lobby');
-    }
   };
 
   return (
@@ -35,7 +26,7 @@ export const FightersScreen = ({ selectedFighter, onSelectFighter, onNavigate }:
           <ArrowLeft className="w-5 h-5" />
         </GameButton>
         <h1 className="font-game-title text-3xl text-glow-orange text-primary">
-          CHOOSE FIGHTER
+          FIGHTERS GALLERY
         </h1>
       </div>
 
@@ -57,9 +48,7 @@ export const FightersScreen = ({ selectedFighter, onSelectFighter, onNavigate }:
               </h2>
               <span className={cn(
                 'uppercase font-bold text-sm mb-4',
-                previewFighter.rarity === 'legendary' && 'text-game-legendary',
-                previewFighter.rarity === 'epic' && 'text-game-epic',
-                previewFighter.rarity === 'rare' && 'text-game-rare'
+                getRarityColor(previewFighter.rarity)
               )}>
                 {previewFighter.rarity}
               </span>
@@ -103,31 +92,37 @@ export const FightersScreen = ({ selectedFighter, onSelectFighter, onNavigate }:
                 </div>
               </div>
 
-              {/* Ability */}
-              <div className="w-full bg-muted rounded-xl p-4 mb-4">
+              {/* Abilities */}
+              <div className="w-full space-y-2">
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles className="w-4 h-4 text-primary" />
-                  <span className="font-game-heading text-primary">{previewFighter.ability}</span>
+                  <span className="font-game-heading text-primary">Abilities</span>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {previewFighter.abilityDescription}
-                </p>
+                {previewFighter.abilities.map(ability => (
+                  <div key={ability.id} className="bg-muted rounded-lg p-3">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-sm">{ability.name}</span>
+                      <span className={cn(
+                        'text-xs px-2 py-0.5 rounded-full',
+                        ability.type === 'attack' && 'bg-destructive/20 text-destructive',
+                        ability.type === 'defense' && 'bg-accent/20 text-accent',
+                        ability.type === 'special' && 'bg-primary/20 text-primary'
+                      )}>
+                        {ability.type === 'attack' && `${ability.damage} DMG`}
+                        {ability.type === 'defense' && `${ability.defense} DEF`}
+                        {ability.type === 'special' && `${ability.damage} DMG`}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{ability.description}</p>
+                  </div>
+                ))}
               </div>
-
-              <GameButton 
-                variant="gold" 
-                size="lg" 
-                className="w-full"
-                onClick={handleConfirm}
-              >
-                SELECT FIGHTER
-              </GameButton>
             </div>
           </div>
         )}
 
         {/* Fighter Grid */}
-        <div className="flex-1">
+        <div className="flex-1 overflow-y-auto">
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-4 gap-3">
             {FRUIT_FIGHTERS.map((fighter) => (
               <FighterCard
