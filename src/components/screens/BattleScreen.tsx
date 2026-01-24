@@ -1,169 +1,309 @@
 import { useState, useEffect } from 'react';
 import { GameButton } from '@/components/ui/game-button';
 import { HealthBar } from '@/components/HealthBar';
-import { BattleState, GameScreen } from '@/types/game';
-import { Sword, Shield, Sparkles, ArrowLeft, RotateCcw } from 'lucide-react';
+import { BattleState, GameScreen, TeamMember, Ability } from '@/types/game';
+import { ArrowLeft, RotateCcw, Shield, Swords, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getRarityColor } from '@/data/fighters';
 
 interface BattleScreenProps {
   battleState: BattleState;
-  onAttack: () => void;
-  onDefend: () => void;
-  onSpecial: () => void;
+  onProceedFromCoinToss: () => void;
+  onSelectFighter: (index: number) => void;
+  onUseAbility: (abilityIndex: number, targetIndex: number) => void;
+  onDefend: (defenderIndex: number | null) => void;
+  onSkipDefense: () => void;
   onNavigate: (screen: GameScreen) => void;
   onRestart: () => void;
 }
 
+const WINNING_SCORE = 15;
+
 export const BattleScreen = ({ 
   battleState, 
-  onAttack, 
-  onDefend, 
-  onSpecial, 
+  onProceedFromCoinToss,
+  onSelectFighter,
+  onUseAbility,
+  onDefend,
+  onSkipDefense,
   onNavigate,
   onRestart 
 }: BattleScreenProps) => {
-  const [showDamage, setShowDamage] = useState<{ player: number | null; opponent: number | null }>({
-    player: null,
-    opponent: null
-  });
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [selectedAbility, setSelectedAbility] = useState<{ index: number; ability: Ability } | null>(null);
+  const [showAbilityPopup, setShowAbilityPopup] = useState(false);
 
-  const { player, opponent, turn, battleLog, winner } = battleState;
+  const { player, opponent, turn, phase, coinTossWinner, pendingAttack, battleLog, winner, selectedFighterIndex } = battleState;
 
-  // Show damage numbers briefly
+  // Reset selection when turn changes
   useEffect(() => {
-    if (showDamage.player || showDamage.opponent) {
-      const timer = setTimeout(() => {
-        setShowDamage({ player: null, opponent: null });
-      }, 1000);
-      return () => clearTimeout(timer);
+    if (turn !== 'player') {
+      setSelectedAbility(null);
+      setShowAbilityPopup(false);
     }
-  }, [showDamage]);
+  }, [turn]);
 
-  const handleAction = (action: () => void) => {
-    if (isAnimating || turn !== 'player' || winner) return;
-    setIsAnimating(true);
-    action();
-    setTimeout(() => setIsAnimating(false), 500);
+  const handleFighterClick = (index: number) => {
+    if (phase !== 'select_action' || turn !== 'player') return;
+    if (!player.team[index].isAlive) return;
+    
+    onSelectFighter(index);
+    setShowAbilityPopup(true);
+    setSelectedAbility(null);
+  };
+
+  const handleAbilitySelect = (abilityIndex: number, ability: Ability) => {
+    setSelectedAbility({ index: abilityIndex, ability });
+  };
+
+  const handleTargetSelect = (targetIndex: number) => {
+    if (!selectedAbility || selectedFighterIndex === null) return;
+    if (!opponent.team[targetIndex].isAlive) return;
+    
+    onUseAbility(selectedAbility.index, targetIndex);
+    setShowAbilityPopup(false);
+    setSelectedAbility(null);
+  };
+
+  const handleDefenseSelect = () => {
+    // Find fighter with shield ability
+    const shieldFighter = player.team.findIndex(m => 
+      m.isAlive && m.fighter.abilities.some(a => a.type === 'defense')
+    );
+    if (shieldFighter !== -1) {
+      onDefend(shieldFighter);
+    } else {
+      onSkipDefense();
+    }
+  };
+
+  const renderFighterSlot = (member: TeamMember, index: number, isPlayer: boolean) => {
+    const isSelected = isPlayer && selectedFighterIndex === index;
+    const isTargetable = !isPlayer && selectedAbility && member.isAlive;
+    
+    return (
+      <div
+        key={member.fighter.id + index}
+        onClick={() => isPlayer ? handleFighterClick(index) : (isTargetable && handleTargetSelect(index))}
+        className={cn(
+          'flex flex-col items-center p-2 rounded-xl transition-all cursor-pointer',
+          'w-16 sm:w-20',
+          member.isAlive ? 'opacity-100' : 'opacity-40 grayscale',
+          isSelected && 'ring-2 ring-primary scale-110',
+          isTargetable && 'ring-2 ring-destructive animate-pulse',
+          isPlayer && turn === 'player' && member.isAlive && 'hover:scale-105'
+        )}
+      >
+        <div className={cn(
+          'w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center bg-gradient-to-br border',
+          member.fighter.color,
+          isPlayer ? 'border-primary/50' : 'border-destructive/50',
+          member.fighter.hasShield && 'ring-2 ring-blue-400'
+        )}>
+          <span className="text-2xl sm:text-3xl">{member.fighter.emoji}</span>
+          {member.fighter.hasShield && (
+            <Shield className="absolute -top-1 -right-1 w-4 h-4 text-blue-400" />
+          )}
+        </div>
+        <span className={cn(
+          'text-xs mt-1 font-medium truncate w-full text-center',
+          getRarityColor(member.fighter.rarity)
+        )}>
+          {member.fighter.name}
+        </span>
+        <HealthBar 
+          current={member.currentHealth} 
+          max={member.fighter.maxHealth}
+          size="sm"
+        />
+      </div>
+    );
   };
 
   return (
-    <div className="min-h-screen flex flex-col p-4 animate-slide-up">
+    <div className="min-h-screen flex flex-col p-3 animate-slide-up">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-2">
         <GameButton variant="ghost" size="icon" onClick={() => onNavigate('lobby')}>
           <ArrowLeft className="w-5 h-5" />
         </GameButton>
-        <h1 className="font-game-title text-2xl text-glow-orange text-primary">
-          {opponent.isBot ? 'VS BOT' : 'PVP BATTLE'}
-        </h1>
+        <div className="text-center">
+          <h1 className="font-game-title text-xl text-glow-orange text-primary">
+            {opponent.isBot ? 'VS BOT' : 'PVP BATTLE'}
+          </h1>
+          <p className="text-xs text-muted-foreground">First to {WINNING_SCORE} points wins!</p>
+        </div>
         <div className="w-12" />
       </div>
 
-      {/* Battle Arena */}
-      <div className="flex-1 flex flex-col">
-        {/* Opponent Side */}
-        <div className="flex-1 flex flex-col items-center justify-end pb-8">
-          <div className="relative">
-            {/* Damage indicator */}
-            {showDamage.opponent && (
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2 font-game-title text-2xl text-destructive animate-slide-up">
-                -{showDamage.opponent}
-              </div>
-            )}
-            
-            <div className={cn(
-              'w-28 h-28 rounded-2xl flex items-center justify-center bg-gradient-to-br border-2 border-destructive/50 transition-all',
-              opponent.fighter.color,
-              turn === 'opponent' && 'box-glow-orange scale-105'
-            )}>
-              <span className={cn(
-                'text-6xl transition-transform',
-                isAnimating && turn === 'opponent' && 'animate-shake'
-              )}>
-                {opponent.fighter.emoji}
-              </span>
-            </div>
-          </div>
-          
-          <div className="mt-3 text-center w-48">
-            <h3 className="font-game-heading text-lg text-foreground">
-              {opponent.fighter.name}
-            </h3>
-            <HealthBar 
-              current={opponent.currentHealth} 
-              max={opponent.fighter.maxHealth}
-              size="md"
-            />
-          </div>
+      {/* Score Display */}
+      <div className="flex justify-center gap-8 mb-3">
+        <div className="text-center">
+          <span className="font-game-title text-2xl text-primary">{player.score}</span>
+          <p className="text-xs text-muted-foreground">You</p>
         </div>
-
-        {/* VS Indicator */}
-        <div className="flex items-center justify-center py-4">
-          <div className="bg-primary px-6 py-2 rounded-full">
-            <span className="font-game-title text-xl text-primary-foreground">VS</span>
-          </div>
+        <div className="flex items-center">
+          <Swords className="w-5 h-5 text-muted-foreground" />
         </div>
+        <div className="text-center">
+          <span className="font-game-title text-2xl text-destructive">{opponent.score}</span>
+          <p className="text-xs text-muted-foreground">Opponent</p>
+        </div>
+      </div>
 
-        {/* Player Side */}
-        <div className="flex-1 flex flex-col items-center justify-start pt-8">
-          <div className="mb-3 text-center w-48">
-            <h3 className="font-game-heading text-lg text-foreground">
-              {player.fighter.name}
-            </h3>
-            <HealthBar 
-              current={player.currentHealth} 
-              max={player.fighter.maxHealth}
-              size="md"
-            />
-          </div>
+      {/* Turn Indicator */}
+      <div className={cn(
+        'text-center py-2 px-4 rounded-full mx-auto mb-3',
+        turn === 'player' ? 'bg-primary/20 text-primary' : 'bg-destructive/20 text-destructive'
+      )}>
+        <span className="font-game-heading text-sm">
+          {turn === 'player' ? 'Your Turn' : "Opponent's Turn"}
+        </span>
+      </div>
 
-          <div className="relative">
-            {/* Damage indicator */}
-            {showDamage.player && (
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2 font-game-title text-2xl text-destructive animate-slide-up">
-                -{showDamage.player}
-              </div>
-            )}
-            
-            <div className={cn(
-              'w-28 h-28 rounded-2xl flex items-center justify-center bg-gradient-to-br border-2 border-primary/50 transition-all',
-              player.fighter.color,
-              turn === 'player' && 'box-glow-orange scale-105'
-            )}>
-              <span className={cn(
-                'text-6xl transition-transform',
-                isAnimating && turn === 'player' && 'animate-shake'
-              )}>
-                {player.fighter.emoji}
-              </span>
-            </div>
-          </div>
+      {/* Opponent Team */}
+      <div className="mb-4">
+        <p className="text-xs text-muted-foreground text-center mb-2">Opponent Team</p>
+        <div className="flex justify-center gap-1 sm:gap-2 overflow-x-auto pb-2">
+          {opponent.team.map((member, index) => renderFighterSlot(member, index, false))}
+        </div>
+      </div>
 
-          {/* Energy Bar */}
-          <div className="mt-4 w-48">
-            <HealthBar 
-              current={player.energy} 
-              max={100}
-              label="Energy"
-              size="sm"
-              variant="energy"
-            />
-          </div>
+      {/* VS Divider */}
+      <div className="flex items-center justify-center py-2">
+        <div className="h-px bg-border flex-1" />
+        <div className="bg-primary px-4 py-1 rounded-full mx-4">
+          <span className="font-game-title text-sm text-primary-foreground">VS</span>
+        </div>
+        <div className="h-px bg-border flex-1" />
+      </div>
+
+      {/* Player Team */}
+      <div className="mb-4">
+        <p className="text-xs text-muted-foreground text-center mb-2">Your Team (Click to select)</p>
+        <div className="flex justify-center gap-1 sm:gap-2 overflow-x-auto pb-2">
+          {player.team.map((member, index) => renderFighterSlot(member, index, true))}
         </div>
       </div>
 
       {/* Battle Log */}
-      <div className="h-20 bg-card/80 backdrop-blur-sm rounded-xl p-3 mb-4 overflow-y-auto border border-border">
-        {battleLog.slice(-3).map((log, i) => (
+      <div className="flex-1 bg-card/80 backdrop-blur-sm rounded-xl p-3 mb-3 overflow-y-auto border border-border min-h-[80px] max-h-[120px]">
+        {battleLog.slice(-4).map((log, i) => (
           <p key={i} className="text-sm text-muted-foreground">
             {log}
           </p>
         ))}
       </div>
 
+      {/* Coin Toss Overlay */}
+      {phase === 'coin_toss' && (
+        <div className="fixed inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center z-50 animate-scale-in">
+          <div className="bg-card rounded-2xl p-8 text-center border-2 border-primary box-glow-orange max-w-sm mx-4">
+            <span className="text-6xl mb-4 block animate-bounce">🪙</span>
+            <h2 className="font-game-title text-2xl text-foreground mb-2">COIN TOSS!</h2>
+            <p className="text-muted-foreground mb-6">
+              {coinTossWinner === 'player' 
+                ? 'You go first! Select a fighter and use an ability.' 
+                : 'Opponent goes first. Prepare to defend!'}
+            </p>
+            <GameButton variant="primary" onClick={onProceedFromCoinToss}>
+              Start Battle!
+            </GameButton>
+          </div>
+        </div>
+      )}
+
+      {/* Ability Selection Popup */}
+      {showAbilityPopup && selectedFighterIndex !== null && phase === 'select_action' && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-card rounded-2xl p-6 border-2 border-primary max-w-sm mx-4 w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-game-heading text-lg">
+                {player.team[selectedFighterIndex].fighter.name}'s Abilities
+              </h3>
+              <GameButton variant="ghost" size="icon" onClick={() => setShowAbilityPopup(false)}>
+                <X className="w-4 h-4" />
+              </GameButton>
+            </div>
+            
+            <div className="space-y-3">
+              {player.team[selectedFighterIndex].fighter.abilities.map((ability, i) => (
+                <button
+                  key={ability.id}
+                  onClick={() => handleAbilitySelect(i, ability)}
+                  className={cn(
+                    'w-full p-3 rounded-xl border text-left transition-all',
+                    selectedAbility?.index === i 
+                      ? 'border-primary bg-primary/20' 
+                      : 'border-border hover:border-primary/50',
+                    ability.type === 'attack' && 'hover:bg-destructive/10',
+                    ability.type === 'defense' && 'hover:bg-blue-500/10',
+                    ability.type === 'special' && 'hover:bg-amber-500/10'
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{ability.name}</span>
+                    <span className={cn(
+                      'text-xs px-2 py-1 rounded-full',
+                      ability.type === 'attack' && 'bg-destructive/20 text-destructive',
+                      ability.type === 'defense' && 'bg-blue-500/20 text-blue-400',
+                      ability.type === 'special' && 'bg-amber-500/20 text-amber-400'
+                    )}>
+                      {ability.type === 'attack' && `${ability.damage} DMG`}
+                      {ability.type === 'defense' && `${ability.defense} DEF`}
+                      {ability.type === 'special' && `${ability.damage} DMG`}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">{ability.description}</p>
+                </button>
+              ))}
+            </div>
+            
+            {selectedAbility && (
+              <p className="text-sm text-primary text-center mt-4">
+                {selectedAbility.ability.type === 'defense' 
+                  ? 'Click to apply shield!' 
+                  : 'Now click an enemy to attack!'}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Defense Choice Popup */}
+      {phase === 'defense_choice' && pendingAttack && (
+        <div className="fixed inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center z-50 animate-scale-in">
+          <div className="bg-card rounded-2xl p-6 border-2 border-destructive max-w-sm mx-4">
+            <div className="text-center mb-4">
+              <span className="text-4xl mb-2 block">⚔️</span>
+              <h3 className="font-game-title text-xl text-destructive">INCOMING ATTACK!</h3>
+              <p className="text-sm text-muted-foreground mt-2">
+                {pendingAttack.attacker.fighter.name} is using {pendingAttack.ability.name} on {pendingAttack.target.fighter.name}!
+              </p>
+            </div>
+            
+            <div className="flex gap-3">
+              <GameButton 
+                variant="accent" 
+                className="flex-1"
+                onClick={handleDefenseSelect}
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                Defend
+              </GameButton>
+              <GameButton 
+                variant="ghost" 
+                className="flex-1"
+                onClick={onSkipDefense}
+              >
+                Skip
+              </GameButton>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Winner Overlay */}
-      {winner && (
+      {winner && phase === 'game_over' && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 animate-scale-in">
           <div className="bg-card rounded-2xl p-8 text-center border-2 border-primary box-glow-orange max-w-sm mx-4">
             <span className="text-6xl mb-4 block">
@@ -172,12 +312,15 @@ export const BattleScreen = ({
             <h2 className="font-game-title text-3xl text-foreground mb-2">
               {winner === 'player' ? 'VICTORY!' : 'DEFEAT'}
             </h2>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-muted-foreground mb-2">
+              Final Score: {player.score} - {opponent.score}
+            </p>
+            <p className="text-sm text-muted-foreground mb-6">
               {winner === 'player' 
                 ? 'You dominated the arena!' 
                 : 'Better luck next time...'}
             </p>
-            <div className="flex gap-4">
+            <div className="flex gap-4 justify-center">
               <GameButton variant="ghost" onClick={() => onNavigate('lobby')}>
                 <ArrowLeft className="w-4 h-4" />
                 Lobby
@@ -190,40 +333,6 @@ export const BattleScreen = ({
           </div>
         </div>
       )}
-
-      {/* Action Buttons */}
-      <div className="grid grid-cols-3 gap-3">
-        <GameButton 
-          variant="destructive" 
-          size="lg"
-          onClick={() => handleAction(onAttack)}
-          disabled={turn !== 'player' || !!winner}
-          className="flex-col h-20"
-        >
-          <Sword className="w-6 h-6 mb-1" />
-          <span className="text-xs">ATTACK</span>
-        </GameButton>
-        <GameButton 
-          variant="accent" 
-          size="lg"
-          onClick={() => handleAction(onDefend)}
-          disabled={turn !== 'player' || !!winner}
-          className="flex-col h-20"
-        >
-          <Shield className="w-6 h-6 mb-1" />
-          <span className="text-xs">DEFEND</span>
-        </GameButton>
-        <GameButton 
-          variant="gold" 
-          size="lg"
-          onClick={() => handleAction(onSpecial)}
-          disabled={turn !== 'player' || player.energy < 50 || !!winner}
-          className="flex-col h-20"
-        >
-          <Sparkles className="w-6 h-6 mb-1" />
-          <span className="text-xs">SPECIAL</span>
-        </GameButton>
-      </div>
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import { GameButton } from '@/components/ui/game-button';
 import { Player, GameScreen } from '@/types/game';
-import { Swords, Bot, Users, Settings, Trophy, Star, Zap } from 'lucide-react';
+import { Swords, Bot, Users, Settings, Trophy, Star } from 'lucide-react';
 
 interface LobbyScreenProps {
   player: Player;
@@ -16,7 +16,7 @@ export const LobbyScreen = ({ player, onNavigate }: LobbyScreenProps) => {
           {/* Player info */}
           <div className="flex items-center gap-3">
             <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center text-2xl border-2 border-orange-400/50">
-              {player.selectedFighter?.emoji || '🎮'}
+              🎮
             </div>
             <div>
               <h2 className="font-game-heading text-lg text-foreground">{player.name}</h2>
@@ -43,29 +43,25 @@ export const LobbyScreen = ({ player, onNavigate }: LobbyScreenProps) => {
             FRUIT CLASH
           </h1>
           <p className="text-muted-foreground font-game-heading">
-            Choose your fighter. Dominate the arena.
+            Build your team. Dominate the arena.
           </p>
         </div>
 
-        {/* Selected Fighter Preview */}
-        {player.selectedFighter && (
-          <div 
-            onClick={() => onNavigate('fighters')}
-            className="relative mb-8 cursor-pointer group"
-          >
-            <div className="w-32 h-32 rounded-2xl bg-gradient-to-br from-card to-muted border-2 border-primary/50 flex items-center justify-center box-glow-orange transition-transform group-hover:scale-105">
-              <span className="text-7xl animate-float">{player.selectedFighter.emoji}</span>
-            </div>
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-primary px-3 py-1 rounded-lg">
-              <span className="font-game-heading text-sm text-primary-foreground">
-                {player.selectedFighter.name}
-              </span>
-            </div>
-            <div className="absolute -top-2 -right-2 w-8 h-8 bg-accent rounded-full flex items-center justify-center animate-pulse-glow">
-              <Zap className="w-4 h-4 text-accent-foreground" />
-            </div>
-          </div>
-        )}
+        {/* Team Preview */}
+        <div className="flex justify-center gap-2 mb-8">
+          {player.selectedTeam.length > 0 ? (
+            player.selectedTeam.slice(0, 6).map((fighter, i) => (
+              <div 
+                key={fighter.id + i}
+                className="w-12 h-12 rounded-lg bg-gradient-to-br from-card to-muted border border-primary/50 flex items-center justify-center"
+              >
+                <span className="text-2xl">{fighter.emoji}</span>
+              </div>
+            ))
+          ) : (
+            <p className="text-muted-foreground">No team selected yet</p>
+          )}
+        </div>
 
         {/* Battle Mode Buttons */}
         <div className="w-full space-y-4">

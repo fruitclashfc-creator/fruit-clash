@@ -1,199 +1,304 @@
 import { useState, useCallback } from 'react';
-import { BattleState, FruitFighter } from '@/types/game';
-import { getRandomFighter } from '@/data/fighters';
+import { BattleState, FruitFighter, TeamMember, Ability, PendingAttack } from '@/types/game';
+import { getRandomTeam } from '@/data/fighters';
+
+const POINTS_FOR_DAMAGE = 1;
+const POINTS_FOR_KILL = 2;
+const WINNING_SCORE = 15;
+
+const createTeamMember = (fighter: FruitFighter): TeamMember => ({
+  fighter: { ...fighter, currentHealth: fighter.maxHealth, isAlive: true },
+  currentHealth: fighter.maxHealth,
+  isAlive: true,
+  cooldowns: {},
+});
 
 export const useBattle = () => {
   const [battleState, setBattleState] = useState<BattleState | null>(null);
 
-  const startBattle = useCallback((playerFighter: FruitFighter, isBot: boolean) => {
-    const opponentFighter = getRandomFighter();
+  const startBattle = useCallback((playerTeam: FruitFighter[], isBot: boolean) => {
+    const opponentTeam = getRandomTeam(6);
+    
+    const coinToss = Math.random() > 0.5 ? 'player' : 'opponent';
     
     setBattleState({
       player: {
-        fighter: playerFighter,
-        currentHealth: playerFighter.maxHealth,
-        energy: 0,
+        team: playerTeam.map(createTeamMember),
+        score: 0,
+        isBot: false,
       },
       opponent: {
-        fighter: opponentFighter,
-        currentHealth: opponentFighter.maxHealth,
-        energy: 0,
+        team: opponentTeam.map(createTeamMember),
+        score: 0,
         isBot,
       },
-      turn: 'player',
-      battleLog: [`Battle started! ${playerFighter.name} vs ${opponentFighter.name}!`],
-      isActive: true,
+      turn: coinToss,
+      phase: 'coin_toss',
+      coinTossWinner: coinToss,
+      pendingAttack: null,
+      battleLog: [`Coin toss! ${coinToss === 'player' ? 'You go' : 'Opponent goes'} first!`],
       winner: null,
+      selectedFighterIndex: null,
     });
   }, []);
 
-  const calculateDamage = (attacker: FruitFighter, defender: FruitFighter, isSpecial: boolean): number => {
-    const baseDamage = attacker.attack + (isSpecial ? 20 : 0);
-    const reduction = defender.defense * 0.5;
-    const variance = Math.random() * 10 - 5;
-    return Math.max(5, Math.floor(baseDamage - reduction + variance));
-  };
-
-  const addLogEntry = (message: string) => {
+  const proceedFromCoinToss = useCallback(() => {
     setBattleState(prev => {
       if (!prev) return prev;
+      
+      // If bot goes first, trigger bot action
+      if (prev.turn === 'opponent' && prev.opponent.isBot) {
+        setTimeout(() => executeBotTurn(), 1000);
+      }
+      
       return {
         ...prev,
-        battleLog: [...prev.battleLog, message],
+        phase: 'select_action',
       };
     });
-  };
-
-  const checkWinner = (playerHealth: number, opponentHealth: number): 'player' | 'opponent' | null => {
-    if (playerHealth <= 0) return 'opponent';
-    if (opponentHealth <= 0) return 'player';
-    return null;
-  };
-
-  const botTurn = useCallback(() => {
-    setTimeout(() => {
-      setBattleState(prev => {
-        if (!prev || prev.winner) return prev;
-
-        const actions = ['attack', 'defend', 'special'];
-        const action = prev.opponent.energy >= 50 
-          ? actions[Math.floor(Math.random() * 3)]
-          : actions[Math.floor(Math.random() * 2)];
-
-        let newPlayerHealth = prev.player.currentHealth;
-        let newOpponentEnergy = prev.opponent.energy;
-        let log = '';
-
-        if (action === 'attack') {
-          const damage = calculateDamage(prev.opponent.fighter, prev.player.fighter, false);
-          newPlayerHealth = Math.max(0, prev.player.currentHealth - damage);
-          log = `${prev.opponent.fighter.name} attacks for ${damage} damage!`;
-        } else if (action === 'defend') {
-          newOpponentEnergy = Math.min(100, prev.opponent.energy + 20);
-          log = `${prev.opponent.fighter.name} defends and gains energy!`;
-        } else {
-          const damage = calculateDamage(prev.opponent.fighter, prev.player.fighter, true);
-          newPlayerHealth = Math.max(0, prev.player.currentHealth - damage);
-          newOpponentEnergy = prev.opponent.energy - 50;
-          log = `${prev.opponent.fighter.name} uses ${prev.opponent.fighter.ability} for ${damage} damage!`;
-        }
-
-        const winner = checkWinner(newPlayerHealth, prev.opponent.currentHealth);
-
-        return {
-          ...prev,
-          player: {
-            ...prev.player,
-            currentHealth: newPlayerHealth,
-          },
-          opponent: {
-            ...prev.opponent,
-            energy: newOpponentEnergy,
-          },
-          turn: 'player',
-          battleLog: [...prev.battleLog, log],
-          winner,
-        };
-      });
-    }, 1500);
   }, []);
 
-  const playerAttack = useCallback(() => {
+  const selectFighter = useCallback((index: number) => {
     setBattleState(prev => {
-      if (!prev || prev.turn !== 'player' || prev.winner) return prev;
-
-      const damage = calculateDamage(prev.player.fighter, prev.opponent.fighter, false);
-      const newOpponentHealth = Math.max(0, prev.opponent.currentHealth - damage);
-      const winner = checkWinner(prev.player.currentHealth, newOpponentHealth);
-
-      const newState = {
+      if (!prev || prev.phase !== 'select_action' || prev.turn !== 'player') return prev;
+      return {
         ...prev,
-        opponent: {
-          ...prev.opponent,
-          currentHealth: newOpponentHealth,
-        },
-        player: {
-          ...prev.player,
-          energy: Math.min(100, prev.player.energy + 15),
-        },
-        turn: winner ? prev.turn : 'opponent' as const,
-        battleLog: [...prev.battleLog, `${prev.player.fighter.name} attacks for ${damage} damage!`],
+        selectedFighterIndex: index,
+      };
+    });
+  }, []);
+
+  const useAbility = useCallback((abilityIndex: number, targetIndex: number) => {
+    setBattleState(prev => {
+      if (!prev || prev.selectedFighterIndex === null || prev.turn !== 'player') return prev;
+      
+      const attackerMember = prev.player.team[prev.selectedFighterIndex];
+      const ability = attackerMember.fighter.abilities[abilityIndex];
+      const targetMember = prev.opponent.team[targetIndex];
+      
+      if (!attackerMember.isAlive || !targetMember.isAlive) return prev;
+      
+      let newOpponentTeam = [...prev.opponent.team];
+      let newPlayerScore = prev.player.score;
+      let log = '';
+      
+      if (ability.type === 'attack' || ability.type === 'special') {
+        // Check if opponent wants to defend (creates pending attack)
+        const pendingAttack: PendingAttack = {
+          attacker: attackerMember,
+          target: targetMember,
+          ability,
+          attackerIndex: prev.selectedFighterIndex,
+          targetIndex,
+        };
+        
+        // For bot opponent, auto-resolve defense
+        if (prev.opponent.isBot) {
+          return executeAttack(prev, pendingAttack);
+        }
+        
+        // For human opponent, show defense choice
+        return {
+          ...prev,
+          pendingAttack,
+          phase: 'defense_choice',
+        };
+      } else if (ability.type === 'defense') {
+        // Defense abilities give shield to a teammate
+        const newPlayerTeam = [...prev.player.team];
+        newPlayerTeam[prev.selectedFighterIndex] = {
+          ...attackerMember,
+          fighter: { ...attackerMember.fighter, hasShield: true },
+        };
+        log = `${attackerMember.fighter.name} uses ${ability.name}!`;
+        
+        return {
+          ...prev,
+          player: { ...prev.player, team: newPlayerTeam },
+          turn: 'opponent',
+          phase: 'select_action',
+          selectedFighterIndex: null,
+          battleLog: [...prev.battleLog, log],
+        };
+      }
+      
+      return prev;
+    });
+  }, []);
+
+  const executeAttack = (state: BattleState, pendingAttack: PendingAttack, useDefender?: number): BattleState => {
+    const { attacker, target, ability, targetIndex } = pendingAttack;
+    let newOpponentTeam = [...state.opponent.team];
+    let newPlayerScore = state.player.score;
+    let log = '';
+    
+    // Calculate damage
+    let damage = ability.damage;
+    const defense = target.fighter.defense;
+    const actualDamage = Math.max(5, damage - Math.floor(defense * 0.3) + Math.floor(Math.random() * 10 - 5));
+    
+    // Apply shield reduction if target has shield
+    const finalDamage = target.fighter.hasShield ? Math.floor(actualDamage * 0.5) : actualDamage;
+    
+    const newHealth = Math.max(0, target.currentHealth - finalDamage);
+    const wasKilled = newHealth === 0 && target.isAlive;
+    
+    newOpponentTeam[targetIndex] = {
+      ...target,
+      currentHealth: newHealth,
+      isAlive: newHealth > 0,
+      fighter: { ...target.fighter, currentHealth: newHealth, isAlive: newHealth > 0, hasShield: false },
+    };
+    
+    // Award points
+    if (finalDamage > 0) {
+      newPlayerScore += POINTS_FOR_DAMAGE;
+    }
+    if (wasKilled) {
+      newPlayerScore += POINTS_FOR_KILL;
+    }
+    
+    log = `${attacker.fighter.name} uses ${ability.name} on ${target.fighter.name} for ${finalDamage} damage!`;
+    if (wasKilled) {
+      log += ` ${target.fighter.name} was defeated!`;
+    }
+    
+    // Check for winner
+    const winner = newPlayerScore >= WINNING_SCORE ? 'player' : null;
+    
+    const newState: BattleState = {
+      ...state,
+      opponent: { ...state.opponent, team: newOpponentTeam },
+      player: { ...state.player, score: newPlayerScore },
+      turn: winner ? state.turn : 'opponent',
+      phase: winner ? 'game_over' : 'select_action',
+      pendingAttack: null,
+      selectedFighterIndex: null,
+      battleLog: [...state.battleLog, log],
+      winner,
+    };
+    
+    // Trigger bot turn if needed
+    if (!winner && state.opponent.isBot) {
+      setTimeout(() => executeBotTurn(), 1500);
+    }
+    
+    return newState;
+  };
+
+  const defendWithFighter = useCallback((defenderIndex: number | null) => {
+    setBattleState(prev => {
+      if (!prev || !prev.pendingAttack) return prev;
+      return executeAttack(prev, prev.pendingAttack, defenderIndex ?? undefined);
+    });
+  }, []);
+
+  const skipDefense = useCallback(() => {
+    setBattleState(prev => {
+      if (!prev || !prev.pendingAttack) return prev;
+      return executeAttack(prev, prev.pendingAttack);
+    });
+  }, []);
+
+  const executeBotTurn = useCallback(() => {
+    setBattleState(prev => {
+      if (!prev || prev.turn !== 'opponent' || prev.winner) return prev;
+      
+      // Find alive bot fighters
+      const aliveFighters = prev.opponent.team
+        .map((m, i) => ({ member: m, index: i }))
+        .filter(({ member }) => member.isAlive);
+      
+      if (aliveFighters.length === 0) return prev;
+      
+      // Pick random alive fighter
+      const { member: botFighter, index: botIndex } = 
+        aliveFighters[Math.floor(Math.random() * aliveFighters.length)];
+      
+      // Pick random ability
+      const abilityIndex = Math.floor(Math.random() * botFighter.fighter.abilities.length);
+      const ability = botFighter.fighter.abilities[abilityIndex];
+      
+      // Find alive player fighters to target
+      const alivePlayerFighters = prev.player.team
+        .map((m, i) => ({ member: m, index: i }))
+        .filter(({ member }) => member.isAlive);
+      
+      if (alivePlayerFighters.length === 0) return prev;
+      
+      const { member: targetMember, index: targetIndex } = 
+        alivePlayerFighters[Math.floor(Math.random() * alivePlayerFighters.length)];
+      
+      if (ability.type === 'defense') {
+        // Bot uses defense
+        const newBotTeam = [...prev.opponent.team];
+        newBotTeam[botIndex] = {
+          ...botFighter,
+          fighter: { ...botFighter.fighter, hasShield: true },
+        };
+        
+        return {
+          ...prev,
+          opponent: { ...prev.opponent, team: newBotTeam },
+          turn: 'player',
+          battleLog: [...prev.battleLog, `${botFighter.fighter.name} uses ${ability.name}!`],
+        };
+      }
+      
+      // Bot attacks
+      let newPlayerTeam = [...prev.player.team];
+      let newOpponentScore = prev.opponent.score;
+      
+      const damage = ability.damage;
+      const defense = targetMember.fighter.defense;
+      const actualDamage = Math.max(5, damage - Math.floor(defense * 0.3) + Math.floor(Math.random() * 10 - 5));
+      const finalDamage = targetMember.fighter.hasShield ? Math.floor(actualDamage * 0.5) : actualDamage;
+      
+      const newHealth = Math.max(0, targetMember.currentHealth - finalDamage);
+      const wasKilled = newHealth === 0 && targetMember.isAlive;
+      
+      newPlayerTeam[targetIndex] = {
+        ...targetMember,
+        currentHealth: newHealth,
+        isAlive: newHealth > 0,
+        fighter: { ...targetMember.fighter, currentHealth: newHealth, isAlive: newHealth > 0, hasShield: false },
+      };
+      
+      if (finalDamage > 0) newOpponentScore += POINTS_FOR_DAMAGE;
+      if (wasKilled) newOpponentScore += POINTS_FOR_KILL;
+      
+      let log = `${botFighter.fighter.name} uses ${ability.name} on ${targetMember.fighter.name} for ${finalDamage} damage!`;
+      if (wasKilled) log += ` ${targetMember.fighter.name} was defeated!`;
+      
+      const winner = newOpponentScore >= WINNING_SCORE ? 'opponent' : null;
+      
+      return {
+        ...prev,
+        player: { ...prev.player, team: newPlayerTeam },
+        opponent: { ...prev.opponent, score: newOpponentScore },
+        turn: winner ? prev.turn : 'player',
+        phase: winner ? 'game_over' : 'select_action',
+        battleLog: [...prev.battleLog, log],
         winner,
       };
-
-      if (!winner && prev.opponent.isBot) {
-        botTurn();
-      }
-
-      return newState;
     });
-  }, [botTurn]);
-
-  const playerDefend = useCallback(() => {
-    setBattleState(prev => {
-      if (!prev || prev.turn !== 'player' || prev.winner) return prev;
-
-      const newState = {
-        ...prev,
-        player: {
-          ...prev.player,
-          energy: Math.min(100, prev.player.energy + 30),
-        },
-        turn: 'opponent' as const,
-        battleLog: [...prev.battleLog, `${prev.player.fighter.name} defends and charges energy!`],
-      };
-
-      if (prev.opponent.isBot) {
-        botTurn();
-      }
-
-      return newState;
-    });
-  }, [botTurn]);
-
-  const playerSpecial = useCallback(() => {
-    setBattleState(prev => {
-      if (!prev || prev.turn !== 'player' || prev.player.energy < 50 || prev.winner) return prev;
-
-      const damage = calculateDamage(prev.player.fighter, prev.opponent.fighter, true);
-      const newOpponentHealth = Math.max(0, prev.opponent.currentHealth - damage);
-      const winner = checkWinner(prev.player.currentHealth, newOpponentHealth);
-
-      const newState = {
-        ...prev,
-        opponent: {
-          ...prev.opponent,
-          currentHealth: newOpponentHealth,
-        },
-        player: {
-          ...prev.player,
-          energy: prev.player.energy - 50,
-        },
-        turn: winner ? prev.turn : 'opponent' as const,
-        battleLog: [...prev.battleLog, `${prev.player.fighter.name} uses ${prev.player.fighter.ability} for ${damage} damage!`],
-        winner,
-      };
-
-      if (!winner && prev.opponent.isBot) {
-        botTurn();
-      }
-
-      return newState;
-    });
-  }, [botTurn]);
+  }, []);
 
   const restartBattle = useCallback(() => {
     if (battleState) {
-      startBattle(battleState.player.fighter, battleState.opponent.isBot);
+      const playerTeam = battleState.player.team.map(m => m.fighter);
+      startBattle(playerTeam, battleState.opponent.isBot);
     }
   }, [battleState, startBattle]);
 
   return {
     battleState,
     startBattle,
-    playerAttack,
-    playerDefend,
-    playerSpecial,
+    proceedFromCoinToss,
+    selectFighter,
+    useAbility,
+    defendWithFighter,
+    skipDefense,
     restartBattle,
   };
 };

@@ -1,14 +1,36 @@
 export type FruitType = 
+  | 'bomb'
+  | 'spike'
+  | 'chop'
+  | 'spring'
+  | 'smoke'
   | 'flame'
   | 'ice'
-  | 'light'
+  | 'sand'
   | 'dark'
+  | 'light'
   | 'magma'
+  | 'quake'
   | 'buddha'
   | 'phoenix'
-  | 'dragon';
+  | 'dragon'
+  | 'leopard'
+  | 'dough'
+  | 'soul';
 
-export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
+export type Rarity = 'common' | 'rare' | 'epic' | 'legendary' | 'mythic';
+
+export type AbilityType = 'attack' | 'defense' | 'special';
+
+export interface Ability {
+  id: string;
+  name: string;
+  type: AbilityType;
+  damage: number;
+  defense: number;
+  description: string;
+  cooldown: number;
+}
 
 export interface FruitFighter {
   id: string;
@@ -17,13 +39,15 @@ export interface FruitFighter {
   rarity: Rarity;
   health: number;
   maxHealth: number;
+  currentHealth?: number;
   attack: number;
   defense: number;
   speed: number;
-  ability: string;
-  abilityDescription: string;
+  abilities: Ability[];
   emoji: string;
   color: string;
+  isAlive?: boolean;
+  hasShield?: boolean;
 }
 
 export interface Player {
@@ -31,26 +55,41 @@ export interface Player {
   name: string;
   trophies: number;
   level: number;
-  selectedFighter: FruitFighter | null;
+  selectedTeam: FruitFighter[];
   fighters: FruitFighter[];
 }
 
-export interface BattleState {
-  player: {
-    fighter: FruitFighter;
-    currentHealth: number;
-    energy: number;
-  };
-  opponent: {
-    fighter: FruitFighter;
-    currentHealth: number;
-    energy: number;
-    isBot: boolean;
-  };
-  turn: 'player' | 'opponent';
-  battleLog: string[];
-  isActive: boolean;
-  winner: 'player' | 'opponent' | null;
+export interface TeamMember {
+  fighter: FruitFighter;
+  currentHealth: number;
+  isAlive: boolean;
+  cooldowns: Record<string, number>;
 }
 
-export type GameScreen = 'lobby' | 'fighters' | 'battle' | 'settings' | 'mode-select';
+export interface BattlePlayer {
+  team: TeamMember[];
+  score: number;
+  isBot: boolean;
+}
+
+export interface PendingAttack {
+  attacker: TeamMember;
+  target: TeamMember;
+  ability: Ability;
+  attackerIndex: number;
+  targetIndex: number;
+}
+
+export interface BattleState {
+  player: BattlePlayer;
+  opponent: BattlePlayer;
+  turn: 'player' | 'opponent';
+  phase: 'coin_toss' | 'select_action' | 'defense_choice' | 'executing' | 'game_over';
+  coinTossWinner: 'player' | 'opponent' | null;
+  pendingAttack: PendingAttack | null;
+  battleLog: string[];
+  winner: 'player' | 'opponent' | null;
+  selectedFighterIndex: number | null;
+}
+
+export type GameScreen = 'lobby' | 'fighters' | 'team-select' | 'battle' | 'settings' | 'mode-select';

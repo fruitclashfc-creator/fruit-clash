@@ -2,45 +2,48 @@ import { useState, useCallback } from 'react';
 import { LobbyScreen } from '@/components/screens/LobbyScreen';
 import { FightersScreen } from '@/components/screens/FightersScreen';
 import { ModeSelectScreen } from '@/components/screens/ModeSelectScreen';
+import { TeamSelectScreen } from '@/components/screens/TeamSelectScreen';
 import { BattleScreen } from '@/components/screens/BattleScreen';
 import { SettingsScreen } from '@/components/screens/SettingsScreen';
 import { useBattle } from '@/hooks/useBattle';
 import { Player, GameScreen, FruitFighter } from '@/types/game';
-import { FRUIT_FIGHTERS } from '@/data/fighters';
 
 const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<GameScreen>('lobby');
+  const [isVsBot, setIsVsBot] = useState(true);
   const [player, setPlayer] = useState<Player>({
     id: 'player-1',
     name: 'Champion',
     trophies: 1250,
     level: 12,
-    selectedFighter: FRUIT_FIGHTERS[0],
-    fighters: FRUIT_FIGHTERS,
+    selectedTeam: [],
+    fighters: [],
   });
 
   const { 
     battleState, 
     startBattle, 
-    playerAttack, 
-    playerDefend, 
-    playerSpecial,
+    proceedFromCoinToss,
+    selectFighter,
+    useAbility,
+    defendWithFighter,
+    skipDefense,
     restartBattle 
   } = useBattle();
 
-  const handleSelectFighter = useCallback((fighter: FruitFighter) => {
-    setPlayer(prev => ({
-      ...prev,
-      selectedFighter: fighter,
-    }));
+  const handleStartModeSelect = useCallback((vsBot: boolean) => {
+    setIsVsBot(vsBot);
+    setCurrentScreen('team-select');
   }, []);
 
-  const handleStartBattle = useCallback((vsBot: boolean) => {
-    if (player.selectedFighter) {
-      startBattle(player.selectedFighter, vsBot);
-      setCurrentScreen('battle');
-    }
-  }, [player.selectedFighter, startBattle]);
+  const handleTeamSelected = useCallback((team: FruitFighter[]) => {
+    setPlayer(prev => ({
+      ...prev,
+      selectedTeam: team,
+    }));
+    startBattle(team, isVsBot);
+    setCurrentScreen('battle');
+  }, [isVsBot, startBattle]);
 
   const handleNavigate = useCallback((screen: GameScreen) => {
     setCurrentScreen(screen);
@@ -75,16 +78,20 @@ const Index = () => {
         
         {currentScreen === 'fighters' && (
           <FightersScreen
-            selectedFighter={player.selectedFighter}
-            onSelectFighter={handleSelectFighter}
             onNavigate={handleNavigate}
           />
         )}
         
         {currentScreen === 'mode-select' && (
           <ModeSelectScreen
-            selectedFighter={player.selectedFighter}
-            onStartBattle={handleStartBattle}
+            onStartBattle={handleStartModeSelect}
+            onNavigate={handleNavigate}
+          />
+        )}
+
+        {currentScreen === 'team-select' && (
+          <TeamSelectScreen
+            onTeamSelected={handleTeamSelected}
             onNavigate={handleNavigate}
           />
         )}
@@ -92,9 +99,11 @@ const Index = () => {
         {currentScreen === 'battle' && battleState && (
           <BattleScreen
             battleState={battleState}
-            onAttack={playerAttack}
-            onDefend={playerDefend}
-            onSpecial={playerSpecial}
+            onProceedFromCoinToss={proceedFromCoinToss}
+            onSelectFighter={selectFighter}
+            onUseAbility={useAbility}
+            onDefend={defendWithFighter}
+            onSkipDefense={skipDefense}
             onNavigate={handleNavigate}
             onRestart={restartBattle}
           />
