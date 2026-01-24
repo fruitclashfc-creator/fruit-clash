@@ -127,17 +127,37 @@ export const useBattle = () => {
   }, []);
 
   const executeAttack = (state: BattleState, pendingAttack: PendingAttack, useDefender?: number): BattleState => {
-    const { attacker, target, ability, targetIndex, isFromBot } = pendingAttack;
+    const { attacker, target, ability, targetIndex, attackerIndex, isFromBot } = pendingAttack;
     const isPlayerBeingAttacked = isFromBot === true;
     
     // Get the right teams based on who is being attacked
     let targetTeam = isPlayerBeingAttacked ? [...state.player.team] : [...state.opponent.team];
+    let attackerTeam = isPlayerBeingAttacked ? [...state.opponent.team] : [...state.player.team];
     let attackerScore = isPlayerBeingAttacked ? state.opponent.score : state.player.score;
+    let defenderScore = isPlayerBeingAttacked ? state.player.score : state.opponent.score;
+    
+    const logs: string[] = [];
     
     // Calculate damage
     let damage = ability.damage;
     const defense = target.fighter.defense;
     const actualDamage = Math.max(5, damage - Math.floor(defense * 0.3) + Math.floor(Math.random() * 10 - 5));
+    
+    // Check if defender is using a defense ability with special properties
+    let defenderAbility: Ability | undefined;
+    if (useDefender !== undefined) {
+      const defender = targetTeam[useDefender];
+      // Find the defense ability being used
+      defenderAbility = defender?.fighter.abilities.find(a => a.type === 'defense' || a.canDefendWhileAttacking);
+    }
+    
+    // Check for Slime's Bounce Back (reflect damage)
+    const isReflected = defenderAbility?.reflectsDamage && 
+      !ability.unstoppable && // Buddha's attack cannot be reflected
+      defenderAbility.reflectTargetRarity?.includes(attacker.fighter.rarity as 'common' | 'rare');
+    
+    // Check for Light's Radiant Beam (defend while attacking)
+    const counterAttackDamage = defenderAbility?.canDefendWhileAttacking ? defenderAbility.damage : 0;
     
     // Apply shield - completely blocks damage if target has shield or defender was used
     const hasDefense = target.fighter.hasShield || useDefender !== undefined;
@@ -153,7 +173,7 @@ export const useBattle = () => {
       fighter: { ...target.fighter, currentHealth: newHealth, isAlive: newHealth > 0, hasShield: false },
     };
     
-    // Award points to attacker
+    // Award points to attacker for dealing damage
     if (finalDamage > 0) {
       attackerScore += POINTS_FOR_DAMAGE;
     }
@@ -166,11 +186,57 @@ export const useBattle = () => {
     if (wasKilled) {
       log += ` ${target.fighter.name} was defeated!`;
     }
+    logs.push(log);
+    
+    // Handle reflection damage (Slime's Bounce Back)
+    if (isReflected) {
+      const reflectDamage = defenderAbility!.damage;
+      const attackerNewHealth = Math.max(0, attacker.currentHealth - reflectDamage);
+      const attackerWasKilled = attackerNewHealth === 0 && attacker.isAlive;
+      
+      attackerTeam[attackerIndex] = {
+        ...attacker,
+        currentHealth: attackerNewHealth,
+        isAlive: attackerNewHealth > 0,
+        fighter: { ...attacker.fighter, currentHealth: attackerNewHealth, isAlive: attackerNewHealth > 0 },
+      };
+      
+      logs.push(`🔄 ${target.fighter.name}'s Bounce Back reflects ${reflectDamage} damage to ${attacker.fighter.name}!`);
+      
+      if (attackerWasKilled) {
+        logs.push(`💀 ${attacker.fighter.name} was defeated by the reflection!`);
+        defenderScore += POINTS_FOR_KILL;
+      }
+      defenderScore += POINTS_FOR_DAMAGE;
+    }
+    
+    // Handle counter-attack damage (Light's Radiant Beam)
+    if (counterAttackDamage > 0 && !isReflected) {
+      const attackerNewHealth = Math.max(0, attacker.currentHealth - counterAttackDamage);
+      const attackerWasKilled = attackerNewHealth === 0 && attacker.isAlive;
+      
+      attackerTeam[attackerIndex] = {
+        ...attacker,
+        currentHealth: attackerNewHealth,
+        isAlive: attackerNewHealth > 0,
+        fighter: { ...attacker.fighter, currentHealth: attackerNewHealth, isAlive: attackerNewHealth > 0 },
+      };
+      
+      logs.push(`⚡ ${targetTeam[useDefender!].fighter.name}'s Radiant Beam counter-attacks for ${counterAttackDamage} damage!`);
+      
+      if (attackerWasKilled) {
+        logs.push(`💀 ${attacker.fighter.name} was defeated by the counter-attack!`);
+        defenderScore += POINTS_FOR_KILL;
+      }
+      defenderScore += POINTS_FOR_DAMAGE;
+    }
     
     // Check for winner
     const winner = attackerScore >= WINNING_SCORE 
       ? (isPlayerBeingAttacked ? 'opponent' : 'player') 
-      : null;
+      : defenderScore >= WINNING_SCORE 
+        ? (isPlayerBeingAttacked ? 'player' : 'opponent')
+        : null;
     
     // Determine next turn
     const nextTurn = winner ? state.turn : (isPlayerBeingAttacked ? 'player' : 'opponent');
@@ -178,16 +244,16 @@ export const useBattle = () => {
     const newState: BattleState = {
       ...state,
       player: isPlayerBeingAttacked 
-        ? { ...state.player, team: targetTeam }
-        : { ...state.player, score: attackerScore },
+        ? { ...state.player, team: targetTeam, score: defenderScore }
+        : { ...state.player, team: attackerTeam, score: attackerScore },
       opponent: isPlayerBeingAttacked
-        ? { ...state.opponent, score: attackerScore }
-        : { ...state.opponent, team: targetTeam },
+        ? { ...state.opponent, team: attackerTeam, score: attackerScore }
+        : { ...state.opponent, team: targetTeam, score: defenderScore },
       turn: nextTurn,
       phase: winner ? 'game_over' : 'select_action',
       pendingAttack: null,
       selectedFighterIndex: null,
-      battleLog: [...state.battleLog, log],
+      battleLog: [...state.battleLog, ...logs],
       winner,
     };
     
