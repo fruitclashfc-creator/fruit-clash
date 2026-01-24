@@ -7,6 +7,7 @@ import { BattleScreen } from '@/components/screens/BattleScreen';
 import { SettingsScreen } from '@/components/screens/SettingsScreen';
 import { useBattle } from '@/hooks/useBattle';
 import { Player, GameScreen, FruitFighter } from '@/types/game';
+import { calculateLevel } from '@/components/LevelProgress';
 
 const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<GameScreen>('lobby');
@@ -15,7 +16,8 @@ const Index = () => {
     id: 'player-1',
     name: 'Champion',
     trophies: 1250,
-    level: 12,
+    level: 1,
+    totalWins: 0,
     selectedTeam: [],
     fighters: [],
   });
@@ -47,6 +49,21 @@ const Index = () => {
 
   const handleNavigate = useCallback((screen: GameScreen) => {
     setCurrentScreen(screen);
+  }, []);
+
+  const handleVictory = useCallback(() => {
+    setPlayer(prev => {
+      const newTotalWins = prev.totalWins + 1;
+      const newLevel = calculateLevel(newTotalWins);
+      const newTrophies = prev.trophies + 30; // Award trophies on win
+      
+      return {
+        ...prev,
+        totalWins: newTotalWins,
+        level: newLevel,
+        trophies: newTrophies,
+      };
+    });
   }, []);
 
   return (
@@ -106,6 +123,7 @@ const Index = () => {
             onSkipDefense={skipDefense}
             onNavigate={handleNavigate}
             onRestart={restartBattle}
+            onVictory={handleVictory}
           />
         )}
         

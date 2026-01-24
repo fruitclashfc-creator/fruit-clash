@@ -1,6 +1,7 @@
 import { GameButton } from '@/components/ui/game-button';
 import { Player, GameScreen } from '@/types/game';
-import { Swords, Bot, Users, Settings, Trophy, Star } from 'lucide-react';
+import { Swords, Bot, Users, Settings, Trophy } from 'lucide-react';
+import { LevelProgress } from '@/components/LevelProgress';
 
 interface LobbyScreenProps {
   player: Player;
@@ -11,7 +12,7 @@ export const LobbyScreen = ({ player, onNavigate }: LobbyScreenProps) => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-between p-4 pb-8 animate-slide-up">
       {/* Header */}
-      <div className="w-full max-w-lg">
+      <div className="w-full max-w-lg space-y-3">
         <div className="flex items-center justify-between bg-card/80 backdrop-blur-sm rounded-2xl p-4 border border-border">
           {/* Player info */}
           <div className="flex items-center gap-3">
@@ -21,8 +22,7 @@ export const LobbyScreen = ({ player, onNavigate }: LobbyScreenProps) => {
             <div>
               <h2 className="font-game-heading text-lg text-foreground">{player.name}</h2>
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Star className="w-4 h-4 text-primary" />
-                <span>Level {player.level}</span>
+                <span>{player.totalWins} Wins</span>
               </div>
             </div>
           </div>
@@ -33,6 +33,12 @@ export const LobbyScreen = ({ player, onNavigate }: LobbyScreenProps) => {
             <span className="font-game-heading text-lg text-game-legendary">{player.trophies}</span>
           </div>
         </div>
+
+        {/* Level Progress */}
+        <LevelProgress 
+          currentLevel={player.level} 
+          totalWins={player.totalWins} 
+        />
       </div>
 
       {/* Main content */}

@@ -55,6 +55,7 @@ export interface Player {
   name: string;
   trophies: number;
   level: number;
+  totalWins: number;
   selectedTeam: FruitFighter[];
   fighters: FruitFighter[];
 }

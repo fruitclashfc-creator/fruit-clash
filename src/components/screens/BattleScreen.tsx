@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { GameButton } from '@/components/ui/game-button';
 import { HealthBar } from '@/components/HealthBar';
 import { BattleState, GameScreen, TeamMember, Ability } from '@/types/game';
 import { ArrowLeft, RotateCcw, Shield, Swords, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getRarityColor } from '@/data/fighters';
+import { BattleAnimations, useBattleAnimations } from '@/components/BattleAnimations';
 
 interface BattleScreenProps {
   battleState: BattleState;
@@ -15,6 +16,7 @@ interface BattleScreenProps {
   onSkipDefense: () => void;
   onNavigate: (screen: GameScreen) => void;
   onRestart: () => void;
+  onVictory?: () => void;
 }
 
 const WINNING_SCORE = 15;
@@ -27,12 +29,35 @@ export const BattleScreen = ({
   onDefend,
   onSkipDefense,
   onNavigate,
-  onRestart 
+  onRestart,
+  onVictory 
 }: BattleScreenProps) => {
   const [selectedAbility, setSelectedAbility] = useState<{ index: number; ability: Ability } | null>(null);
   const [showAbilityPopup, setShowAbilityPopup] = useState(false);
+  const [damagedIndex, setDamagedIndex] = useState<{ isPlayer: boolean; index: number } | null>(null);
+  
+  const playerFighterRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const opponentFighterRefs = useRef<(HTMLDivElement | null)[]>([]);
+  
+  const {
+    projectile,
+    particles,
+    screenShake,
+    fireProjectile,
+    spawnParticles,
+    triggerScreenShake,
+    clearProjectile,
+    removeParticle,
+  } = useBattleAnimations();
 
   const { player, opponent, turn, phase, coinTossWinner, pendingAttack, battleLog, winner, selectedFighterIndex } = battleState;
+
+  // Track victory
+  useEffect(() => {
+    if (winner === 'player' && onVictory) {
+      onVictory();
+    }
+  }, [winner, onVictory]);
 
   // Reset selection when turn changes
   useEffect(() => {
@@ -41,6 +66,27 @@ export const BattleScreen = ({
       setShowAbilityPopup(false);
     }
   }, [turn]);
+
+  // Trigger animations when an attack resolves
+  useEffect(() => {
+    if (pendingAttack && phase === 'defense_choice') {
+      // Fire projectile from attacker to target
+      const attackerIsBot = pendingAttack.isFromBot;
+      const fromRef = attackerIsBot 
+        ? opponentFighterRefs.current[pendingAttack.attackerIndex]
+        : playerFighterRefs.current[pendingAttack.attackerIndex];
+      const toRef = attackerIsBot
+        ? playerFighterRefs.current[pendingAttack.targetIndex]
+        : opponentFighterRefs.current[pendingAttack.targetIndex];
+      
+      fireProjectile(
+        fromRef,
+        toRef,
+        pendingAttack.ability.type,
+        pendingAttack.attacker.fighter.emoji
+      );
+    }
+  }, [pendingAttack, phase]);
 
   const handleFighterClick = (index: number) => {
     if (phase !== 'select_action' || turn !== 'player') return;
@@ -59,9 +105,42 @@ export const BattleScreen = ({
     if (!selectedAbility || selectedFighterIndex === null) return;
     if (!opponent.team[targetIndex].isAlive) return;
     
+    // Fire projectile animation
+    const fromRef = playerFighterRefs.current[selectedFighterIndex];
+    const toRef = opponentFighterRefs.current[targetIndex];
+    
+    fireProjectile(fromRef, toRef, selectedAbility.ability.type, player.team[selectedFighterIndex].fighter.emoji);
+    
+    // Spawn impact particles after delay
+    setTimeout(() => {
+      spawnParticles(toRef, selectedAbility.ability.type === 'special' ? 'special' : 'hit');
+      triggerScreenShake(selectedAbility.ability.type === 'special' ? 'heavy' : 'light');
+      setDamagedIndex({ isPlayer: false, index: targetIndex });
+      setTimeout(() => setDamagedIndex(null), 300);
+    }, 400);
+    
     onUseAbility(selectedAbility.index, targetIndex);
     setShowAbilityPopup(false);
     setSelectedAbility(null);
+  };
+
+  const handleDefenseSelect = (defenderIndex: number) => {
+    const targetRef = playerFighterRefs.current[pendingAttack?.targetIndex ?? 0];
+    spawnParticles(targetRef, 'shield');
+    triggerScreenShake('light');
+    onDefend(defenderIndex);
+  };
+
+  const handleSkipDefense = () => {
+    const targetRef = playerFighterRefs.current[pendingAttack?.targetIndex ?? 0];
+    const wasKilled = pendingAttack && pendingAttack.target.currentHealth <= (pendingAttack.ability.damage || 0);
+    
+    spawnParticles(targetRef, wasKilled ? 'kill' : 'hit');
+    triggerScreenShake(wasKilled ? 'heavy' : 'light');
+    setDamagedIndex({ isPlayer: true, index: pendingAttack?.targetIndex ?? 0 });
+    setTimeout(() => setDamagedIndex(null), 300);
+    
+    onSkipDefense();
   };
 
   // Find fighters with shield ability for defense options
@@ -71,17 +150,21 @@ export const BattleScreen = ({
       member.isAlive && member.fighter.abilities.some(a => a.type === 'defense')
     );
 
-  const handleDefenseSelect = (defenderIndex: number) => {
-    onDefend(defenderIndex);
-  };
-
   const renderFighterSlot = (member: TeamMember, index: number, isPlayer: boolean) => {
     const isSelected = isPlayer && selectedFighterIndex === index;
     const isTargetable = !isPlayer && selectedAbility && member.isAlive;
+    const isDamaged = damagedIndex?.isPlayer === isPlayer && damagedIndex?.index === index;
     
     return (
       <div
         key={member.fighter.id + index}
+        ref={(el) => {
+          if (isPlayer) {
+            playerFighterRefs.current[index] = el;
+          } else {
+            opponentFighterRefs.current[index] = el;
+          }
+        }}
         onClick={() => isPlayer ? handleFighterClick(index) : (isTargetable && handleTargetSelect(index))}
         className={cn(
           'flex flex-col items-center p-2 rounded-xl transition-all cursor-pointer',
@@ -89,11 +172,12 @@ export const BattleScreen = ({
           member.isAlive ? 'opacity-100' : 'opacity-40 grayscale',
           isSelected && 'ring-2 ring-primary scale-110',
           isTargetable && 'ring-2 ring-destructive animate-pulse',
-          isPlayer && turn === 'player' && member.isAlive && 'hover:scale-105'
+          isPlayer && turn === 'player' && member.isAlive && 'hover:scale-105',
+          isDamaged && 'animate-damage-flash'
         )}
       >
         <div className={cn(
-          'w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center bg-gradient-to-br border',
+          'w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center bg-gradient-to-br border relative',
           member.fighter.color,
           isPlayer ? 'border-primary/50' : 'border-destructive/50',
           member.fighter.hasShield && 'ring-2 ring-blue-400'
@@ -119,7 +203,19 @@ export const BattleScreen = ({
   };
 
   return (
-    <div className="min-h-screen flex flex-col p-3 animate-slide-up">
+    <div className={cn(
+      'min-h-screen flex flex-col p-3 animate-slide-up',
+      screenShake && 'animate-screen-shake'
+    )}>
+      {/* Battle Animations Layer */}
+      <BattleAnimations
+        projectile={projectile}
+        particles={particles}
+        screenShake={false}
+        onProjectileComplete={clearProjectile}
+        onParticleComplete={removeParticle}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <GameButton variant="ghost" size="icon" onClick={() => onNavigate('lobby')}>
@@ -334,7 +430,7 @@ export const BattleScreen = ({
               <GameButton 
                 variant="ghost" 
                 className="flex-1"
-                onClick={onSkipDefense}
+                onClick={handleSkipDefense}
               >
                 Take the Hit
               </GameButton>
