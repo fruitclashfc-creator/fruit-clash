@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, forwardRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LobbyScreen } from '@/components/screens/LobbyScreen';
 import { FightersScreen } from '@/components/screens/FightersScreen';
@@ -13,7 +13,7 @@ import { Player, GameScreen, FruitFighter } from '@/types/game';
 import { calculateLevel } from '@/components/LevelProgress';
 import { Loader2 } from 'lucide-react';
 
-const Index = () => {
+const Index = forwardRef<HTMLDivElement>((_, ref) => {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading, updateProfile, signOut } = useAuth();
   
@@ -131,7 +131,7 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div ref={ref} className="min-h-screen bg-background overflow-x-hidden">
       {/* Animated background stars */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
@@ -207,6 +207,8 @@ const Index = () => {
       </div>
     </div>
   );
-};
+});
+
+Index.displayName = 'Index';
 
 export default Index;
