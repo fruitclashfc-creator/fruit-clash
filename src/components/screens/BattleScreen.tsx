@@ -52,10 +52,17 @@ export const BattleScreen = ({
 
   const { player, opponent, turn, phase, coinTossWinner, pendingAttack, battleLog, winner, selectedFighterIndex } = battleState;
 
-  // Track victory
+  // Track victory - use a ref to prevent infinite loops
+  const hasCalledVictory = useRef(false);
+  
   useEffect(() => {
-    if (winner === 'player' && onVictory) {
+    if (winner === 'player' && onVictory && !hasCalledVictory.current) {
+      hasCalledVictory.current = true;
       onVictory();
+    }
+    // Reset when winner changes to null (new battle)
+    if (winner === null) {
+      hasCalledVictory.current = false;
     }
   }, [winner, onVictory]);
 
