@@ -127,50 +127,63 @@ export const useBattle = () => {
   }, []);
 
   const executeAttack = (state: BattleState, pendingAttack: PendingAttack, useDefender?: number): BattleState => {
-    const { attacker, target, ability, targetIndex } = pendingAttack;
-    let newOpponentTeam = [...state.opponent.team];
-    let newPlayerScore = state.player.score;
-    let log = '';
+    const { attacker, target, ability, targetIndex, isFromBot } = pendingAttack;
+    const isPlayerBeingAttacked = isFromBot === true;
+    
+    // Get the right teams based on who is being attacked
+    let targetTeam = isPlayerBeingAttacked ? [...state.player.team] : [...state.opponent.team];
+    let attackerScore = isPlayerBeingAttacked ? state.opponent.score : state.player.score;
     
     // Calculate damage
     let damage = ability.damage;
     const defense = target.fighter.defense;
     const actualDamage = Math.max(5, damage - Math.floor(defense * 0.3) + Math.floor(Math.random() * 10 - 5));
     
-    // Apply shield reduction if target has shield
-    const finalDamage = target.fighter.hasShield ? Math.floor(actualDamage * 0.5) : actualDamage;
+    // Apply shield reduction if target has shield or defender was used
+    const hasDefense = target.fighter.hasShield || useDefender !== undefined;
+    const finalDamage = hasDefense ? Math.floor(actualDamage * 0.5) : actualDamage;
     
     const newHealth = Math.max(0, target.currentHealth - finalDamage);
     const wasKilled = newHealth === 0 && target.isAlive;
     
-    newOpponentTeam[targetIndex] = {
+    targetTeam[targetIndex] = {
       ...target,
       currentHealth: newHealth,
       isAlive: newHealth > 0,
       fighter: { ...target.fighter, currentHealth: newHealth, isAlive: newHealth > 0, hasShield: false },
     };
     
-    // Award points
+    // Award points to attacker
     if (finalDamage > 0) {
-      newPlayerScore += POINTS_FOR_DAMAGE;
+      attackerScore += POINTS_FOR_DAMAGE;
     }
     if (wasKilled) {
-      newPlayerScore += POINTS_FOR_KILL;
+      attackerScore += POINTS_FOR_KILL;
     }
     
-    log = `${attacker.fighter.name} uses ${ability.name} on ${target.fighter.name} for ${finalDamage} damage!`;
+    let log = `${attacker.fighter.name} uses ${ability.name} on ${target.fighter.name} for ${finalDamage} damage!`;
+    if (hasDefense) log = `🛡️ Defended! ` + log;
     if (wasKilled) {
       log += ` ${target.fighter.name} was defeated!`;
     }
     
     // Check for winner
-    const winner = newPlayerScore >= WINNING_SCORE ? 'player' : null;
+    const winner = attackerScore >= WINNING_SCORE 
+      ? (isPlayerBeingAttacked ? 'opponent' : 'player') 
+      : null;
+    
+    // Determine next turn
+    const nextTurn = winner ? state.turn : (isPlayerBeingAttacked ? 'player' : 'opponent');
     
     const newState: BattleState = {
       ...state,
-      opponent: { ...state.opponent, team: newOpponentTeam },
-      player: { ...state.player, score: newPlayerScore },
-      turn: winner ? state.turn : 'opponent',
+      player: isPlayerBeingAttacked 
+        ? { ...state.player, team: targetTeam }
+        : { ...state.player, score: attackerScore },
+      opponent: isPlayerBeingAttacked
+        ? { ...state.opponent, score: attackerScore }
+        : { ...state.opponent, team: targetTeam },
+      turn: nextTurn,
       phase: winner ? 'game_over' : 'select_action',
       pendingAttack: null,
       selectedFighterIndex: null,
@@ -178,8 +191,8 @@ export const useBattle = () => {
       winner,
     };
     
-    // Trigger bot turn if needed
-    if (!winner && state.opponent.isBot) {
+    // Trigger bot turn if it's now opponent's turn and opponent is bot
+    if (!winner && nextTurn === 'opponent' && state.opponent.isBot) {
       setTimeout(() => executeBotTurn(), 1500);
     }
     
@@ -215,9 +228,11 @@ export const useBattle = () => {
       const { member: botFighter, index: botIndex } = 
         aliveFighters[Math.floor(Math.random() * aliveFighters.length)];
       
-      // Pick random ability
-      const abilityIndex = Math.floor(Math.random() * botFighter.fighter.abilities.length);
-      const ability = botFighter.fighter.abilities[abilityIndex];
+      // Pick random ability (prefer attack abilities)
+      const attackAbilities = botFighter.fighter.abilities.filter(a => a.type === 'attack' || a.type === 'special');
+      const ability = attackAbilities.length > 0 
+        ? attackAbilities[Math.floor(Math.random() * attackAbilities.length)]
+        : botFighter.fighter.abilities[0];
       
       // Find alive player fighters to target
       const alivePlayerFighters = prev.player.team
@@ -245,41 +260,21 @@ export const useBattle = () => {
         };
       }
       
-      // Bot attacks
-      let newPlayerTeam = [...prev.player.team];
-      let newOpponentScore = prev.opponent.score;
-      
-      const damage = ability.damage;
-      const defense = targetMember.fighter.defense;
-      const actualDamage = Math.max(5, damage - Math.floor(defense * 0.3) + Math.floor(Math.random() * 10 - 5));
-      const finalDamage = targetMember.fighter.hasShield ? Math.floor(actualDamage * 0.5) : actualDamage;
-      
-      const newHealth = Math.max(0, targetMember.currentHealth - finalDamage);
-      const wasKilled = newHealth === 0 && targetMember.isAlive;
-      
-      newPlayerTeam[targetIndex] = {
-        ...targetMember,
-        currentHealth: newHealth,
-        isAlive: newHealth > 0,
-        fighter: { ...targetMember.fighter, currentHealth: newHealth, isAlive: newHealth > 0, hasShield: false },
+      // Bot attacks - show defense choice popup to player!
+      const pendingAttack: PendingAttack = {
+        attacker: botFighter,
+        target: targetMember,
+        ability,
+        attackerIndex: botIndex,
+        targetIndex,
+        isFromBot: true,
       };
-      
-      if (finalDamage > 0) newOpponentScore += POINTS_FOR_DAMAGE;
-      if (wasKilled) newOpponentScore += POINTS_FOR_KILL;
-      
-      let log = `${botFighter.fighter.name} uses ${ability.name} on ${targetMember.fighter.name} for ${finalDamage} damage!`;
-      if (wasKilled) log += ` ${targetMember.fighter.name} was defeated!`;
-      
-      const winner = newOpponentScore >= WINNING_SCORE ? 'opponent' : null;
       
       return {
         ...prev,
-        player: { ...prev.player, team: newPlayerTeam },
-        opponent: { ...prev.opponent, score: newOpponentScore },
-        turn: winner ? prev.turn : 'player',
-        phase: winner ? 'game_over' : 'select_action',
-        battleLog: [...prev.battleLog, log],
-        winner,
+        pendingAttack,
+        phase: 'defense_choice',
+        battleLog: [...prev.battleLog, `${botFighter.fighter.name} is attacking ${targetMember.fighter.name}!`],
       };
     });
   }, []);

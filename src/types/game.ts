@@ -78,6 +78,7 @@ export interface PendingAttack {
   ability: Ability;
   attackerIndex: number;
   targetIndex: number;
+  isFromBot?: boolean;
 }
 
 export interface BattleState {

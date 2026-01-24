@@ -64,16 +64,15 @@ export const BattleScreen = ({
     setSelectedAbility(null);
   };
 
-  const handleDefenseSelect = () => {
-    // Find fighter with shield ability
-    const shieldFighter = player.team.findIndex(m => 
-      m.isAlive && m.fighter.abilities.some(a => a.type === 'defense')
+  // Find fighters with shield ability for defense options
+  const defendersWithShield = player.team
+    .map((m, i) => ({ member: m, index: i }))
+    .filter(({ member }) => 
+      member.isAlive && member.fighter.abilities.some(a => a.type === 'defense')
     );
-    if (shieldFighter !== -1) {
-      onDefend(shieldFighter);
-    } else {
-      onSkipDefense();
-    }
+
+  const handleDefenseSelect = (defenderIndex: number) => {
+    onDefend(defenderIndex);
   };
 
   const renderFighterSlot = (member: TeamMember, index: number, isPlayer: boolean) => {
@@ -272,30 +271,72 @@ export const BattleScreen = ({
       {/* Defense Choice Popup */}
       {phase === 'defense_choice' && pendingAttack && (
         <div className="fixed inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center z-50 animate-scale-in">
-          <div className="bg-card rounded-2xl p-6 border-2 border-destructive max-w-sm mx-4">
+          <div className="bg-card rounded-2xl p-6 border-2 border-destructive max-w-md mx-4 w-full">
             <div className="text-center mb-4">
-              <span className="text-4xl mb-2 block">⚔️</span>
-              <h3 className="font-game-title text-xl text-destructive">INCOMING ATTACK!</h3>
+              <span className="text-5xl mb-3 block animate-bounce">⚔️</span>
+              <h3 className="font-game-title text-2xl text-destructive">INCOMING ATTACK!</h3>
               <p className="text-sm text-muted-foreground mt-2">
-                {pendingAttack.attacker.fighter.name} is using {pendingAttack.ability.name} on {pendingAttack.target.fighter.name}!
+                <span className="font-semibold text-foreground">{pendingAttack.attacker.fighter.name}</span> is using{' '}
+                <span className="font-semibold text-amber-400">{pendingAttack.ability.name}</span> on{' '}
+                <span className="font-semibold text-primary">{pendingAttack.target.fighter.name}</span>!
+              </p>
+              <p className="text-xs text-destructive mt-1">
+                Potential damage: ~{pendingAttack.ability.damage} HP
               </p>
             </div>
             
+            <div className="mb-4">
+              <p className="text-xs text-muted-foreground text-center mb-2">
+                Do you want to defend with a shield fighter?
+              </p>
+              
+              {defendersWithShield.length > 0 ? (
+                <div className="flex flex-wrap justify-center gap-2 mb-4">
+                  {defendersWithShield.map(({ member, index }) => (
+                    <button
+                      key={member.fighter.id + index}
+                      onClick={() => handleDefenseSelect(index)}
+                      className="flex flex-col items-center p-2 rounded-xl border-2 border-blue-400 bg-blue-500/10 hover:bg-blue-500/20 transition-all hover:scale-105"
+                    >
+                      <div className={cn(
+                        'w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br border border-blue-400',
+                        member.fighter.color
+                      )}>
+                        <span className="text-2xl">{member.fighter.emoji}</span>
+                      </div>
+                      <span className="text-xs mt-1 font-medium text-blue-400">
+                        {member.fighter.name}
+                      </span>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Shield className="w-3 h-3" /> Defend
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-center text-muted-foreground italic mb-4">
+                  No shield fighters available!
+                </p>
+              )}
+            </div>
+            
             <div className="flex gap-3">
-              <GameButton 
-                variant="accent" 
-                className="flex-1"
-                onClick={handleDefenseSelect}
-              >
-                <Shield className="w-4 h-4 mr-2" />
-                Defend
-              </GameButton>
+              {defendersWithShield.length > 0 && (
+                <GameButton 
+                  variant="accent" 
+                  className="flex-1"
+                  onClick={() => handleDefenseSelect(defendersWithShield[0].index)}
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  Quick Defend
+                </GameButton>
+              )}
               <GameButton 
                 variant="ghost" 
                 className="flex-1"
                 onClick={onSkipDefense}
               >
-                Skip
+                Take the Hit
               </GameButton>
             </div>
           </div>
