@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { GameButton } from '@/components/ui/game-button';
@@ -15,7 +15,7 @@ const authSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').optional(),
 });
 
-const Auth = () => {
+const Auth = forwardRef<HTMLDivElement>((_, ref) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -135,7 +135,7 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4">
+    <div ref={ref} className="min-h-screen flex flex-col items-center justify-center p-4">
       {/* Background stars */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
@@ -152,7 +152,7 @@ const Auth = () => {
         ))}
       </div>
 
-      <div className="w-full max-w-md relative z-10 animate-slide-up">
+      <div className="w-full max-w-md relative z-10 animate-fade-in">
         {/* Title */}
         <div className="text-center mb-8">
           <h1 className="font-game-title text-5xl text-glow-orange text-primary mb-2">
@@ -286,6 +286,8 @@ const Auth = () => {
       </div>
     </div>
   );
-};
+});
+
+Auth.displayName = 'Auth';
 
 export default Auth;
