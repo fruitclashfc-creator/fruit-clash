@@ -6,7 +6,6 @@ import { ModeSelectScreen } from '@/components/screens/ModeSelectScreen';
 import { TeamSelectScreen } from '@/components/screens/TeamSelectScreen';
 import { BattleScreen } from '@/components/screens/BattleScreen';
 import { SettingsScreen } from '@/components/screens/SettingsScreen';
-import { LevelUpPopup } from '@/components/LevelUpPopup';
 import { useBattle } from '@/hooks/useBattle';
 import { useAuth } from '@/hooks/useAuth';
 import { Player, GameScreen, FruitFighter } from '@/types/game';
@@ -19,7 +18,6 @@ const Index = () => {
   
   const [currentScreen, setCurrentScreen] = useState<GameScreen>('lobby');
   const [isVsBot, setIsVsBot] = useState(true);
-  const [levelUpData, setLevelUpData] = useState<{ previousLevel: number; newLevel: number } | null>(null);
   
   const [player, setPlayer] = useState<Player>({
     id: 'player-1',
@@ -81,7 +79,6 @@ const Index = () => {
   }, []);
 
   const handleVictory = useCallback(async () => {
-    const previousLevel = player.level;
     const newTotalWins = player.totalWins + 1;
     const newLevel = calculateLevel(newTotalWins);
     
@@ -97,21 +94,12 @@ const Index = () => {
       total_wins: newTotalWins,
       level: newLevel,
     });
-
-    // Show level up popup if leveled up
-    if (newLevel > previousLevel) {
-      setLevelUpData({ previousLevel, newLevel });
-    }
-  }, [player.level, player.totalWins, updateProfile]);
+  }, [player.totalWins, updateProfile]);
 
   const handleLogout = useCallback(async () => {
     await signOut();
     navigate('/auth', { replace: true });
   }, [signOut, navigate]);
-
-  const handleCloseLevelUp = useCallback(() => {
-    setLevelUpData(null);
-  }, []);
 
   // Show loading state
   if (authLoading) {
@@ -148,14 +136,6 @@ const Index = () => {
         ))}
       </div>
 
-      {/* Level Up Popup */}
-      {levelUpData && (
-        <LevelUpPopup
-          previousLevel={levelUpData.previousLevel}
-          newLevel={levelUpData.newLevel}
-          onClose={handleCloseLevelUp}
-        />
-      )}
 
       {/* Screen content */}
       <div className="relative z-10">
