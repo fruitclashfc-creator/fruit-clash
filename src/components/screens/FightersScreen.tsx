@@ -26,7 +26,7 @@ export const FightersScreen = ({ onNavigate }: FightersScreenProps) => {
           <ArrowLeft className="w-5 h-5" />
         </GameButton>
         <h1 className="font-game-title text-3xl text-glow-orange text-primary">
-          FIGHTERS GALLERY
+          FRUITS GALLERY
         </h1>
       </div>
 
