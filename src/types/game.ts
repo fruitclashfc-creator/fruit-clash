@@ -8,6 +8,7 @@ export type FruitType =
   | 'ice'
   | 'sand'
   | 'dark'
+  | 'slime'
   | 'light'
   | 'magma'
   | 'quake'
@@ -30,6 +31,11 @@ export interface Ability {
   defense: number;
   description: string;
   cooldown: number;
+  // Special ability flags
+  reflectsDamage?: boolean; // Slime's bounce back - reflects damage to attacker
+  reflectTargetRarity?: ('common' | 'rare')[]; // Which rarities can be reflected
+  canDefendWhileAttacking?: boolean; // Light's beam - blocks attack while dealing damage
+  unstoppable?: boolean; // Buddha's beam - cannot be blocked by Slime
 }
 
 export interface FruitFighter {

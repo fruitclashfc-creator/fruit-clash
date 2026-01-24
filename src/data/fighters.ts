@@ -8,7 +8,13 @@ const createAbility = (
   damage: number,
   defense: number,
   description: string,
-  cooldown: number = 0
+  cooldown: number = 0,
+  options?: {
+    reflectsDamage?: boolean;
+    reflectTargetRarity?: ('common' | 'rare')[];
+    canDefendWhileAttacking?: boolean;
+    unstoppable?: boolean;
+  }
 ): Ability => ({
   id,
   name,
@@ -17,10 +23,69 @@ const createAbility = (
   defense,
   description,
   cooldown,
+  ...options,
 });
 
 export const FRUIT_FIGHTERS: FruitFighter[] = [
   // Common Tier
+  {
+    id: 'slime',
+    name: 'Slime',
+    fruitType: 'slime',
+    rarity: 'common',
+    health: 100,
+    maxHealth: 100,
+    attack: 15,
+    defense: 10,
+    speed: 12,
+    abilities: [
+      createAbility('slime-1', 'Goo Smack', 'attack', 50, 0, 'A squishy but powerful slap'),
+      createAbility('slime-2', 'Bounce Back', 'defense', 100, 50, 'Reflects attacks back at common/rare attackers', 0, {
+        reflectsDamage: true,
+        reflectTargetRarity: ['common', 'rare'],
+      }),
+    ],
+    emoji: '🟪',
+    color: 'from-pink-400 to-pink-600',
+  },
+  {
+    id: 'light',
+    name: 'Light',
+    fruitType: 'light',
+    rarity: 'common',
+    health: 300,
+    maxHealth: 300,
+    attack: 20,
+    defense: 8,
+    speed: 18,
+    abilities: [
+      createAbility('light-1', 'Spark Strike', 'attack', 50, 0, 'A simple light attack'),
+      createAbility('light-2', 'Radiant Beam', 'special', 100, 0, 'Powerful light beam that can block while attacking', 0, {
+        canDefendWhileAttacking: true,
+      }),
+    ],
+    emoji: '⭐',
+    color: 'from-yellow-200 to-amber-400',
+  },
+  {
+    id: 'buddha',
+    name: 'Buddha',
+    fruitType: 'buddha',
+    rarity: 'common',
+    health: 500,
+    maxHealth: 500,
+    attack: 25,
+    defense: 15,
+    speed: 8,
+    abilities: [
+      createAbility('buddha-1', 'Palm Strike', 'attack', 50, 0, 'A powerful palm attack'),
+      createAbility('buddha-2', 'Divine Beam', 'special', 250, 0, 'Unstoppable energy beam that cannot be blocked by Slime', 0, {
+        unstoppable: true,
+      }),
+    ],
+    emoji: '☸️',
+    color: 'from-yellow-400 to-amber-500',
+  },
   {
     id: 'bomb',
     name: 'Bomb',
@@ -181,24 +246,6 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     color: 'from-purple-900 to-gray-900',
   },
   {
-    id: 'light',
-    name: 'Light',
-    fruitType: 'light',
-    rarity: 'epic',
-    health: 95,
-    maxHealth: 95,
-    attack: 35,
-    defense: 10,
-    speed: 30,
-    abilities: [
-      createAbility('light-1', 'Light Beam', 'attack', 38, 0, 'Concentrated beam of light'),
-      createAbility('light-2', 'Mirror Shield', 'defense', 0, 35, 'Reflect incoming attacks'),
-      createAbility('light-3', 'Yata Mirror', 'special', 65, 0, 'Ultimate light devastation', 3),
-    ],
-    emoji: '✨',
-    color: 'from-yellow-300 to-amber-500',
-  },
-  {
     id: 'quake',
     name: 'Quake',
     fruitType: 'quake',
@@ -252,24 +299,6 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     ],
     emoji: '🌋',
     color: 'from-red-600 to-orange-700',
-  },
-  {
-    id: 'buddha',
-    name: 'Buddha',
-    fruitType: 'buddha',
-    rarity: 'mythic',
-    health: 150,
-    maxHealth: 150,
-    attack: 25,
-    defense: 35,
-    speed: 10,
-    abilities: [
-      createAbility('buddha-1', 'Enlightened Fist', 'attack', 35, 0, 'Giant golden punch'),
-      createAbility('buddha-2', 'Divine Shield', 'defense', 0, 60, 'Impenetrable golden barrier'),
-      createAbility('buddha-3', 'Transformation', 'special', 55, 20, 'Giant form power boost', 4),
-    ],
-    emoji: '🧘',
-    color: 'from-amber-400 to-yellow-600',
   },
   {
     id: 'phoenix',
