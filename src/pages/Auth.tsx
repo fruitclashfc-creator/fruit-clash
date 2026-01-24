@@ -5,23 +5,26 @@ import { GameButton } from '@/components/ui/game-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Mail, Lock, User } from 'lucide-react';
+import { Loader2, Lock, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { z } from 'zod';
 
-const authSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
+const signupSchema = z.object({
+  username: z.string().min(3, 'Username must be at least 3 characters').max(20, 'Username must be less than 20 characters').regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  name: z.string().min(2, 'Name must be at least 2 characters').optional(),
+});
+
+const loginSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  password: z.string().min(1, 'Password is required'),
 });
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; name?: string }>({});
+  const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -45,9 +48,9 @@ const Auth = () => {
   const validateForm = () => {
     try {
       if (isLogin) {
-        authSchema.pick({ email: true, password: true }).parse({ email, password });
+        loginSchema.parse({ username, password });
       } else {
-        authSchema.parse({ email, password, name });
+        signupSchema.parse({ username, password });
       }
       setErrors({});
       return true;
@@ -65,6 +68,9 @@ const Auth = () => {
     }
   };
 
+  // Generate a fake email from username for Supabase auth
+  const generateEmail = (username: string) => `${username.toLowerCase()}@fruitclash.local`;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -73,6 +79,8 @@ const Auth = () => {
     setLoading(true);
 
     try {
+      const email = generateEmail(username);
+      
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -83,7 +91,7 @@ const Auth = () => {
           if (error.message.includes('Invalid login credentials')) {
             toast({
               title: 'Login Failed',
-              description: 'Invalid email or password. Please try again.',
+              description: 'Invalid username or password. Please try again.',
               variant: 'destructive',
             });
           } else {
@@ -103,7 +111,7 @@ const Auth = () => {
           options: {
             emailRedirectTo: redirectUrl,
             data: {
-              name: name || 'Champion',
+              name: username,
             },
           },
         });
@@ -111,8 +119,8 @@ const Auth = () => {
         if (error) {
           if (error.message.includes('already registered')) {
             toast({
-              title: 'Account Exists',
-              description: 'This email is already registered. Please log in instead.',
+              title: 'Username Taken',
+              description: 'This username is already taken. Please choose another.',
               variant: 'destructive',
             });
           } else {
@@ -192,49 +200,25 @@ const Auth = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Name field (signup only) */}
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="name" className="flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  Champion Name
-                </Label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="Enter your name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className={cn(
-                    'bg-muted border-border',
-                    errors.name && 'border-destructive'
-                  )}
-                />
-                {errors.name && (
-                  <p className="text-xs text-destructive">{errors.name}</p>
-                )}
-              </div>
-            )}
-
-            {/* Email field */}
+            {/* Username field */}
             <div className="space-y-2">
-              <Label htmlFor="email" className="flex items-center gap-2">
-                <Mail className="w-4 h-4" />
-                Email
+              <Label htmlFor="username" className="flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Username
               </Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text"
+                placeholder="Enter your username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className={cn(
                   'bg-muted border-border',
-                  errors.email && 'border-destructive'
+                  errors.username && 'border-destructive'
                 )}
               />
-              {errors.email && (
-                <p className="text-xs text-destructive">{errors.email}</p>
+              {errors.username && (
+                <p className="text-xs text-destructive">{errors.username}</p>
               )}
             </div>
 
