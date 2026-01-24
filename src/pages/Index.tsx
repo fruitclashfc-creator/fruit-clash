@@ -6,6 +6,7 @@ import { ModeSelectScreen } from '@/components/screens/ModeSelectScreen';
 import { TeamSelectScreen } from '@/components/screens/TeamSelectScreen';
 import { BattleScreen } from '@/components/screens/BattleScreen';
 import { SettingsScreen } from '@/components/screens/SettingsScreen';
+import { LevelUpNotification } from '@/components/LevelUpNotification';
 import { useBattle } from '@/hooks/useBattle';
 import { useAuth } from '@/hooks/useAuth';
 import { Player, GameScreen, FruitFighter } from '@/types/game';
@@ -18,6 +19,7 @@ const Index = () => {
   
   const [currentScreen, setCurrentScreen] = useState<GameScreen>('lobby');
   const [isVsBot, setIsVsBot] = useState(true);
+  const [levelUpNotification, setLevelUpNotification] = useState<number | null>(null);
   
   const [player, setPlayer] = useState<Player>({
     id: 'player-1',
@@ -80,6 +82,7 @@ const Index = () => {
 
   const handleVictory = useCallback(async () => {
     const newTotalWins = player.totalWins + 1;
+    const oldLevel = player.level;
     const newLevel = calculateLevel(newTotalWins);
     
     // Update local state
@@ -89,12 +92,17 @@ const Index = () => {
       level: newLevel,
     }));
 
+    // Show level up notification if level increased
+    if (newLevel > oldLevel) {
+      setLevelUpNotification(newLevel);
+    }
+
     // Update database
     await updateProfile({
       total_wins: newTotalWins,
       level: newLevel,
     });
-  }, [player.totalWins, updateProfile]);
+  }, [player.totalWins, player.level, updateProfile]);
 
   const handleLogout = useCallback(async () => {
     await signOut();
@@ -120,6 +128,14 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
+      {/* Level Up Notification */}
+      {levelUpNotification !== null && (
+        <LevelUpNotification
+          newLevel={levelUpNotification}
+          onClose={() => setLevelUpNotification(null)}
+        />
+      )}
+
       {/* Animated background stars */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (

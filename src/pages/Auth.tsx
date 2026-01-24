@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { z } from 'zod';
 
 const signupSchema = z.object({
-  username: z.string().min(3, 'Username must be at least 3 characters').max(20, 'Username must be less than 20 characters').regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
+  username: z.string().min(3, 'Username must be at least 3 characters').max(20, 'Username must be less than 20 characters').regex(/^[a-zA-Z0-9_ ]+$/, 'Username can only contain letters, numbers, spaces, and underscores'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
@@ -68,8 +68,8 @@ const Auth = () => {
     }
   };
 
-  // Generate a fake email from username for Supabase auth
-  const generateEmail = (username: string) => `${username.toLowerCase()}@fruitclash.local`;
+  // Generate a fake email from username for Supabase auth (replace spaces with underscores)
+  const generateEmail = (username: string) => `${username.toLowerCase().replace(/\s+/g, '_')}@fruitclash.local`;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
