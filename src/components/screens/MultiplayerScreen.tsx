@@ -1,16 +1,31 @@
 import { GameButton } from '@/components/ui/game-button';
 import { GameScreen } from '@/types/game';
 import { ArrowLeft, Users, Loader2, RefreshCw, Swords, X, Check, Clock } from 'lucide-react';
-import { useOnlinePresence } from '@/hooks/useOnlinePresence';
 import { useGameInvitations } from '@/hooks/useGameInvitations';
+
+interface OnlinePlayer {
+  id: string;
+  user_id: string;
+  name: string;
+  level: number;
+  last_seen: string;
+}
 
 interface MultiplayerScreenProps {
   onNavigate: (screen: GameScreen) => void;
   onStartMultiplayerMatch: (opponentId: string, opponentName: string) => void;
+  onlinePlayers: OnlinePlayer[];
+  playersLoading: boolean;
+  refreshPlayers: () => void;
 }
 
-export const MultiplayerScreen = ({ onNavigate, onStartMultiplayerMatch }: MultiplayerScreenProps) => {
-  const { onlinePlayers, loading: playersLoading, refresh: refreshPlayers } = useOnlinePresence();
+export const MultiplayerScreen = ({ 
+  onNavigate, 
+  onStartMultiplayerMatch,
+  onlinePlayers,
+  playersLoading,
+  refreshPlayers,
+}: MultiplayerScreenProps) => {
   const { 
     pendingInvitations, 
     sentInvitations,
@@ -64,7 +79,7 @@ export const MultiplayerScreen = ({ onNavigate, onStartMultiplayerMatch }: Multi
         <GameButton 
           variant="ghost" 
           size="icon" 
-          onClick={() => refreshPlayers()}
+          onClick={refreshPlayers}
           className="ml-auto"
         >
           <RefreshCw className={`w-5 h-5 ${playersLoading ? 'animate-spin' : ''}`} />

@@ -10,6 +10,7 @@ import { MultiplayerScreen } from '@/components/screens/MultiplayerScreen';
 import { LevelUpNotification } from '@/components/LevelUpNotification';
 import { useBattle } from '@/hooks/useBattle';
 import { useAuth } from '@/hooks/useAuth';
+import { useOnlinePresence } from '@/hooks/useOnlinePresence';
 import { Player, GameScreen, FruitFighter } from '@/types/game';
 import { calculateLevel } from '@/components/LevelProgress';
 import { Loader2 } from 'lucide-react';
@@ -17,6 +18,9 @@ import { Loader2 } from 'lucide-react';
 const Index = () => {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading, updateProfile, signOut } = useAuth();
+  
+  // Track presence at app level - players will show as online in all screens
+  const { onlinePlayers, loading: playersLoading, refresh: refreshPlayers } = useOnlinePresence();
   
   const [currentScreen, setCurrentScreen] = useState<GameScreen>('lobby');
   const [isVsBot, setIsVsBot] = useState(true);
@@ -210,6 +214,9 @@ const Index = () => {
           <MultiplayerScreen 
             onNavigate={handleNavigate}
             onStartMultiplayerMatch={handleStartMultiplayerMatch}
+            onlinePlayers={onlinePlayers}
+            playersLoading={playersLoading}
+            refreshPlayers={refreshPlayers}
           />
         )}
         
