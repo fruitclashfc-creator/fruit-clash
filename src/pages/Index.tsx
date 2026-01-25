@@ -69,9 +69,10 @@ const Index = () => {
   }, []);
 
   const handleStartMultiplayerMatch = useCallback((opponentId: string, opponentName: string) => {
-    // For now, multiplayer matches work like bot matches
-    // In a full implementation, you'd sync with the opponent
-    setIsVsBot(false);
+    // IMPORTANT: Until real-time multiplayer sync is implemented,
+    // multiplayer matches run as bot matches to prevent the game from breaking.
+    // The opponent will be controlled by AI until WebSocket sync is added.
+    setIsVsBot(true);
     setCurrentScreen('team-select');
   }, []);
 
