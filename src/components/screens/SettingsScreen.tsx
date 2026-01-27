@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { GameButton } from '@/components/ui/game-button';
 import { GameScreen } from '@/types/game';
-import { ArrowLeft, Volume2, VolumeX, Music, Vibrate, Bell, Info } from 'lucide-react';
+import { ArrowLeft, Volume2, VolumeX, Music, Vibrate, Bell, Info, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SettingsScreenProps {
@@ -66,6 +66,20 @@ export const SettingsScreen = ({ onNavigate }: SettingsScreenProps) => {
 
       {/* Settings List */}
       <div className="flex-1 space-y-4 max-w-lg mx-auto w-full">
+        {/* Profile Button */}
+        <div 
+          onClick={() => onNavigate('profile' as GameScreen)}
+          className="flex items-center gap-4 bg-gradient-to-r from-primary/20 to-orange-600/20 rounded-xl p-4 border border-primary/50 cursor-pointer hover:border-primary transition-all"
+        >
+          <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center text-primary-foreground">
+            <User className="w-6 h-6" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-game-heading text-foreground">Edit Profile</h3>
+            <p className="text-sm text-muted-foreground">Change your name and avatar</p>
+          </div>
+        </div>
+
         <ToggleSetting
           icon={settings.sound ? <Volume2 className="w-6 h-6" /> : <VolumeX className="w-6 h-6" />}
           label="Sound Effects"

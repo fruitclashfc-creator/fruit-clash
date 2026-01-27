@@ -6,6 +6,7 @@ import { ModeSelectScreen } from '@/components/screens/ModeSelectScreen';
 import { TeamSelectScreen } from '@/components/screens/TeamSelectScreen';
 import { BattleScreen } from '@/components/screens/BattleScreen';
 import { SettingsScreen } from '@/components/screens/SettingsScreen';
+import { ProfileScreen } from '@/components/screens/ProfileScreen';
 import { MultiplayerScreen } from '@/components/screens/MultiplayerScreen';
 import { LevelUpNotification } from '@/components/LevelUpNotification';
 import { useBattle } from '@/hooks/useBattle';
@@ -16,6 +17,9 @@ import { Player, GameScreen, FruitFighter } from '@/types/game';
 import { calculateLevel } from '@/components/LevelProgress';
 import { Loader2 } from 'lucide-react';
 
+// Extended GameScreen type to include profile
+type ExtendedGameScreen = GameScreen | 'profile';
+
 const Index = () => {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading, updateProfile, signOut } = useAuth();
@@ -23,7 +27,7 @@ const Index = () => {
   // Track presence at app level - players will show as online in all screens
   const { onlinePlayers, loading: playersLoading, refresh: refreshPlayers } = useOnlinePresence();
   
-  const [currentScreen, setCurrentScreen] = useState<GameScreen>('lobby');
+  const [currentScreen, setCurrentScreen] = useState<ExtendedGameScreen>('lobby');
   const [isVsBot, setIsVsBot] = useState(true);
   const [isMultiplayer, setIsMultiplayer] = useState(false);
   const [levelUpNotification, setLevelUpNotification] = useState<number | null>(null);
@@ -37,6 +41,7 @@ const Index = () => {
     totalWins: 0,
     selectedTeam: [],
     fighters: [],
+    avatarUrl: null,
   });
 
   // Redirect to auth if not logged in
@@ -52,9 +57,10 @@ const Index = () => {
       setPlayer(prev => ({
         ...prev,
         id: profile.user_id,
-        name: profile.name,
+        name: profile.name || 'Champion',
         level: profile.level,
         totalWins: profile.total_wins,
+        avatarUrl: profile.avatar_url,
       }));
     }
   }, [profile]);
@@ -121,7 +127,7 @@ const Index = () => {
     }
   }, [isVsBot, isMultiplayer, startBattle, submitTeam]);
 
-  const handleNavigate = useCallback((screen: GameScreen) => {
+  const handleNavigate = useCallback((screen: ExtendedGameScreen) => {
     // Reset multiplayer state when navigating away from battle
     if (screen === 'lobby' || screen === 'mode-select') {
       setIsMultiplayer(false);
@@ -129,6 +135,16 @@ const Index = () => {
     }
     setCurrentScreen(screen);
   }, []);
+
+  const handleProfileUpdate = useCallback(async (updates: { name?: string; avatar_url?: string }) => {
+    await updateProfile(updates);
+    if (updates.name) {
+      setPlayer(prev => ({ ...prev, name: updates.name! }));
+    }
+    if (updates.avatar_url) {
+      setPlayer(prev => ({ ...prev, avatarUrl: updates.avatar_url }));
+    }
+  }, [updateProfile]);
 
   const handleVictory = useCallback(async () => {
     const newTotalWins = player.totalWins + 1;
@@ -263,7 +279,15 @@ const Index = () => {
         )}
         
         {currentScreen === 'settings' && (
-          <SettingsScreen onNavigate={handleNavigate} />
+          <SettingsScreen onNavigate={handleNavigate as (screen: GameScreen) => void} />
+        )}
+
+        {currentScreen === 'profile' && (
+          <ProfileScreen 
+            onNavigate={handleNavigate as (screen: GameScreen) => void}
+            profile={profile}
+            onProfileUpdate={handleProfileUpdate}
+          />
         )}
       </div>
     </div>
