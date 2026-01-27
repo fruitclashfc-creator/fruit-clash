@@ -235,7 +235,14 @@ export const useMultiplayerMatch = () => {
       if (data) {
         const matchData = data as unknown as ActiveMatch;
         setMatch(matchData);
-        // Don't set battle state here - wait for realtime subscription
+        
+        // Load existing battle state immediately if it exists
+        if (matchData.battle_state) {
+          const dbState = matchData.battle_state as unknown as DbBattleState;
+          const localState = transformToLocalView(dbState, matchData, user.id);
+          setBattleState(localState);
+        }
+        
         return matchData;
       }
       return null;
@@ -509,6 +516,13 @@ export const useMultiplayerMatch = () => {
   useEffect(() => {
     if (!match || !user) return;
 
+    // Immediately load current state if it exists
+    if (match.battle_state && !battleState) {
+      const dbState = match.battle_state as unknown as DbBattleState;
+      const localState = transformToLocalView(dbState, match, user.id);
+      setBattleState(localState);
+    }
+
     const channel = supabase
       .channel(`match-${match.id}`)
       .on(
@@ -536,14 +550,16 @@ export const useMultiplayerMatch = () => {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Multiplayer channel status:', status);
+      });
 
     channelRef.current = channel;
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [match, user, initializeBattle]);
+  }, [match?.id, user?.id, initializeBattle, battleState]);
 
   // Clean up match
   const leaveMatch = useCallback(async () => {

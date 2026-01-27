@@ -17,8 +17,12 @@ export const LobbyScreen = ({ player, onNavigate, onLogout }: LobbyScreenProps) 
         <div className="flex items-center justify-between bg-card/80 backdrop-blur-sm rounded-2xl p-4 border border-border">
           {/* Player info */}
           <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center text-2xl border-2 border-orange-400/50">
-              🎮
+            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center text-2xl border-2 border-orange-400/50 overflow-hidden">
+              {player.avatarUrl ? (
+                <img src={player.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                '🎮'
+              )}
             </div>
             <div>
               <h2 className="font-game-heading text-lg text-foreground">{player.name}</h2>

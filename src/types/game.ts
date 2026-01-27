@@ -64,6 +64,7 @@ export interface Player {
   totalWins: number;
   selectedTeam: FruitFighter[];
   fighters: FruitFighter[];
+  avatarUrl?: string | null;
 }
 
 export interface TeamMember {
