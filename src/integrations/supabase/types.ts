@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      active_matches: {
+        Row: {
+          battle_state: Json | null
+          created_at: string
+          current_turn: string | null
+          id: string
+          pending_action: Json | null
+          player1_id: string
+          player1_name: string
+          player1_ready: boolean
+          player1_team: Json | null
+          player2_id: string
+          player2_name: string
+          player2_ready: boolean
+          player2_team: Json | null
+          status: string
+          updated_at: string
+          winner_id: string | null
+        }
+        Insert: {
+          battle_state?: Json | null
+          created_at?: string
+          current_turn?: string | null
+          id?: string
+          pending_action?: Json | null
+          player1_id: string
+          player1_name: string
+          player1_ready?: boolean
+          player1_team?: Json | null
+          player2_id: string
+          player2_name: string
+          player2_ready?: boolean
+          player2_team?: Json | null
+          status?: string
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Update: {
+          battle_state?: Json | null
+          created_at?: string
+          current_turn?: string | null
+          id?: string
+          pending_action?: Json | null
+          player1_id?: string
+          player1_name?: string
+          player1_ready?: boolean
+          player1_team?: Json | null
+          player2_id?: string
+          player2_name?: string
+          player2_ready?: boolean
+          player2_team?: Json | null
+          status?: string
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Relationships: []
+      }
       game_invitations: {
         Row: {
           created_at: string

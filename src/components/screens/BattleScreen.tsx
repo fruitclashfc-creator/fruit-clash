@@ -15,8 +15,13 @@ interface BattleScreenProps {
   onDefend: (defenderIndex: number | null) => void;
   onSkipDefense: () => void;
   onNavigate: (screen: GameScreen) => void;
-  onRestart: () => void;
+  onRestart?: () => void;
   onVictory?: () => void;
+  // Multiplayer props
+  isMultiplayer?: boolean;
+  isMyTurn?: boolean;
+  opponentName?: string;
+  waitingForOpponent?: boolean;
 }
 
 const WINNING_SCORE = 15;
@@ -30,7 +35,11 @@ export const BattleScreen = ({
   onSkipDefense,
   onNavigate,
   onRestart,
-  onVictory 
+  onVictory,
+  isMultiplayer = false,
+  isMyTurn = true,
+  opponentName,
+  waitingForOpponent = false,
 }: BattleScreenProps) => {
   const [selectedAbility, setSelectedAbility] = useState<{ index: number; ability: Ability } | null>(null);
   const [showAbilityPopup, setShowAbilityPopup] = useState(false);
@@ -96,7 +105,9 @@ export const BattleScreen = ({
   }, [pendingAttack, phase]);
 
   const handleFighterClick = (index: number) => {
-    if (phase !== 'select_action' || turn !== 'player') return;
+    // In multiplayer, also check isMyTurn
+    const canAct = isMultiplayer ? isMyTurn : turn === 'player';
+    if (phase !== 'select_action' || !canAct) return;
     if (!player.team[index].isAlive) return;
     
     onSelectFighter(index);
@@ -230,7 +241,7 @@ export const BattleScreen = ({
         </GameButton>
         <div className="text-center">
           <h1 className="font-game-title text-xl text-glow-orange text-primary">
-            {opponent.isBot ? 'VS BOT' : 'PVP BATTLE'}
+            {isMultiplayer ? `VS ${opponentName || 'PLAYER'}` : (opponent.isBot ? 'VS BOT' : 'PVP BATTLE')}
           </h1>
           <p className="text-xs text-muted-foreground">First to {WINNING_SCORE} points wins!</p>
         </div>
@@ -255,10 +266,10 @@ export const BattleScreen = ({
       {/* Turn Indicator */}
       <div className={cn(
         'text-center py-2 px-4 rounded-full mx-auto mb-3',
-        turn === 'player' ? 'bg-primary/20 text-primary' : 'bg-destructive/20 text-destructive'
+        (isMultiplayer ? isMyTurn : turn === 'player') ? 'bg-primary/20 text-primary' : 'bg-destructive/20 text-destructive'
       )}>
         <span className="font-game-heading text-sm">
-          {turn === 'player' ? 'Your Turn' : "Opponent's Turn"}
+          {(isMultiplayer ? isMyTurn : turn === 'player') ? 'Your Turn' : "Opponent's Turn"}
         </span>
       </div>
 
@@ -296,8 +307,25 @@ export const BattleScreen = ({
         ))}
       </div>
 
+      {/* Waiting for Opponent Overlay (Multiplayer) */}
+      {waitingForOpponent && (
+        <div className="fixed inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-card rounded-2xl p-8 text-center border-2 border-secondary max-w-sm mx-4">
+            <div className="w-16 h-16 rounded-full border-4 border-secondary border-t-transparent animate-spin mx-auto mb-4" />
+            <h2 className="font-game-title text-2xl text-foreground mb-2">WAITING...</h2>
+            <p className="text-muted-foreground mb-4">
+              Waiting for {opponentName || 'opponent'} to select their team
+            </p>
+            <GameButton variant="ghost" onClick={() => onNavigate('lobby')}>
+              <ArrowLeft className="w-4 h-4" />
+              Leave Match
+            </GameButton>
+          </div>
+        </div>
+      )}
+
       {/* Coin Toss Overlay */}
-      {phase === 'coin_toss' && (
+      {phase === 'coin_toss' && !waitingForOpponent && (
         <div className="fixed inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center z-50 animate-scale-in">
           <div className="bg-card rounded-2xl p-8 text-center border-2 border-primary box-glow-orange max-w-sm mx-4">
             <span className="text-6xl mb-4 block animate-bounce">🪙</span>
@@ -469,10 +497,12 @@ export const BattleScreen = ({
                 <ArrowLeft className="w-4 h-4" />
                 Lobby
               </GameButton>
-              <GameButton variant="primary" onClick={onRestart}>
-                <RotateCcw className="w-4 h-4" />
-                Rematch
-              </GameButton>
+              {onRestart && (
+                <GameButton variant="primary" onClick={onRestart}>
+                  <RotateCcw className="w-4 h-4" />
+                  Rematch
+                </GameButton>
+              )}
             </div>
           </div>
         </div>
