@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LobbyScreen } from '@/components/screens/LobbyScreen';
 import { FightersScreen } from '@/components/screens/FightersScreen';
@@ -9,6 +9,7 @@ import { SettingsScreen } from '@/components/screens/SettingsScreen';
 import { MultiplayerScreen } from '@/components/screens/MultiplayerScreen';
 import { LevelUpNotification } from '@/components/LevelUpNotification';
 import { useBattle } from '@/hooks/useBattle';
+import { useMultiplayerMatch } from '@/hooks/useMultiplayerMatch';
 import { useAuth } from '@/hooks/useAuth';
 import { useOnlinePresence } from '@/hooks/useOnlinePresence';
 import { Player, GameScreen, FruitFighter } from '@/types/game';
@@ -24,7 +25,9 @@ const Index = () => {
   
   const [currentScreen, setCurrentScreen] = useState<GameScreen>('lobby');
   const [isVsBot, setIsVsBot] = useState(true);
+  const [isMultiplayer, setIsMultiplayer] = useState(false);
   const [levelUpNotification, setLevelUpNotification] = useState<number | null>(null);
+  const multiplayerOpponentRef = useRef<{ id: string; name: string } | null>(null);
   
   const [player, setPlayer] = useState<Player>({
     id: 'player-1',
@@ -67,29 +70,62 @@ const Index = () => {
     restartBattle 
   } = useBattle();
 
+  // Multiplayer match hook
+  const {
+    match: multiplayerMatch,
+    battleState: multiplayerBattleState,
+    isMyTurn,
+    joinMatch,
+    submitTeam,
+    selectFighter: mpSelectFighter,
+    useAbility: mpUseAbility,
+    defendWithFighter: mpDefendWithFighter,
+    skipDefense: mpSkipDefense,
+    proceedFromCoinToss: mpProceedFromCoinToss,
+    leaveMatch,
+    bothReady,
+  } = useMultiplayerMatch();
+
   const handleStartModeSelect = useCallback((vsBot: boolean) => {
     setIsVsBot(vsBot);
     setCurrentScreen('team-select');
   }, []);
 
-  const handleStartMultiplayerMatch = useCallback((opponentId: string, opponentName: string) => {
-    // IMPORTANT: Until real-time multiplayer sync is implemented,
-    // multiplayer matches run as bot matches to prevent the game from breaking.
-    // The opponent will be controlled by AI until WebSocket sync is added.
-    setIsVsBot(true);
+  const handleStartMultiplayerMatch = useCallback(async (opponentId: string, opponentName: string) => {
+    // Store opponent info for multiplayer
+    multiplayerOpponentRef.current = { id: opponentId, name: opponentName };
+    setIsMultiplayer(true);
+    setIsVsBot(false);
+    
+    // Join or create the match
+    await joinMatch(opponentId, opponentName);
+    
     setCurrentScreen('team-select');
-  }, []);
+  }, [joinMatch]);
 
-  const handleTeamSelected = useCallback((team: FruitFighter[]) => {
+  const handleTeamSelected = useCallback(async (team: FruitFighter[]) => {
     setPlayer(prev => ({
       ...prev,
       selectedTeam: team,
     }));
-    startBattle(team, isVsBot);
-    setCurrentScreen('battle');
-  }, [isVsBot, startBattle]);
+    
+    if (isMultiplayer) {
+      // Submit team to multiplayer match
+      await submitTeam(team);
+      setCurrentScreen('battle');
+    } else {
+      // Start bot battle
+      startBattle(team, isVsBot);
+      setCurrentScreen('battle');
+    }
+  }, [isVsBot, isMultiplayer, startBattle, submitTeam]);
 
   const handleNavigate = useCallback((screen: GameScreen) => {
+    // Reset multiplayer state when navigating away from battle
+    if (screen === 'lobby' || screen === 'mode-select') {
+      setIsMultiplayer(false);
+      multiplayerOpponentRef.current = null;
+    }
     setCurrentScreen(screen);
   }, []);
 
@@ -196,17 +232,21 @@ const Index = () => {
           />
         )}
         
-        {currentScreen === 'battle' && battleState && (
+        {currentScreen === 'battle' && (isMultiplayer ? multiplayerBattleState : battleState) && (
           <BattleScreen
-            battleState={battleState}
-            onProceedFromCoinToss={proceedFromCoinToss}
-            onSelectFighter={selectFighter}
-            onUseAbility={useAbility}
-            onDefend={defendWithFighter}
-            onSkipDefense={skipDefense}
+            battleState={(isMultiplayer ? multiplayerBattleState : battleState)!}
+            onProceedFromCoinToss={isMultiplayer ? mpProceedFromCoinToss : proceedFromCoinToss}
+            onSelectFighter={isMultiplayer ? mpSelectFighter : selectFighter}
+            onUseAbility={isMultiplayer ? mpUseAbility : useAbility}
+            onDefend={isMultiplayer ? mpDefendWithFighter : defendWithFighter}
+            onSkipDefense={isMultiplayer ? mpSkipDefense : skipDefense}
             onNavigate={handleNavigate}
-            onRestart={restartBattle}
+            onRestart={isMultiplayer ? undefined : restartBattle}
             onVictory={handleVictory}
+            isMultiplayer={isMultiplayer}
+            isMyTurn={isMyTurn}
+            opponentName={multiplayerOpponentRef.current?.name}
+            waitingForOpponent={isMultiplayer && multiplayerMatch && !bothReady}
           />
         )}
 
