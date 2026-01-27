@@ -20,6 +20,7 @@ interface BattleScreenProps {
   // Multiplayer props
   isMultiplayer?: boolean;
   isMyTurn?: boolean;
+  isBeingAttacked?: boolean; // In multiplayer, true when opponent is attacking me
   opponentName?: string;
   waitingForOpponent?: boolean;
 }
@@ -38,6 +39,7 @@ export const BattleScreen = ({
   onVictory,
   isMultiplayer = false,
   isMyTurn = true,
+  isBeingAttacked,
   opponentName,
   waitingForOpponent = false,
 }: BattleScreenProps) => {
@@ -399,8 +401,8 @@ export const BattleScreen = ({
         </div>
       )}
 
-      {/* Defense Choice Popup */}
-      {phase === 'defense_choice' && pendingAttack && (
+      {/* Defense Choice Popup - Show only when I need to defend */}
+      {phase === 'defense_choice' && pendingAttack && (isMultiplayer ? isBeingAttacked : true) && (
         <div className="fixed inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center z-50 animate-scale-in">
           <div className="bg-card rounded-2xl p-6 border-2 border-destructive max-w-md mx-4 w-full">
             <div className="text-center mb-4">
@@ -470,6 +472,22 @@ export const BattleScreen = ({
                 Take the Hit
               </GameButton>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Waiting for opponent's defense (Multiplayer - I attacked) */}
+      {isMultiplayer && phase === 'defense_choice' && pendingAttack && !isBeingAttacked && (
+        <div className="fixed inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-card rounded-2xl p-8 text-center border-2 border-secondary max-w-sm mx-4">
+            <div className="w-16 h-16 rounded-full border-4 border-secondary border-t-transparent animate-spin mx-auto mb-4" />
+            <h2 className="font-game-title text-2xl text-foreground mb-2">ATTACK SENT!</h2>
+            <p className="text-muted-foreground mb-4">
+              Waiting for {opponentName || 'opponent'} to defend...
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {pendingAttack.attacker.fighter.name} → {pendingAttack.ability.name} → {pendingAttack.target.fighter.name}
+            </p>
           </div>
         </div>
       )}

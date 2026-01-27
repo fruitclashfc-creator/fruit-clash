@@ -75,6 +75,7 @@ const Index = () => {
     match: multiplayerMatch,
     battleState: multiplayerBattleState,
     isMyTurn,
+    isBeingAttacked,
     joinMatch,
     submitTeam,
     selectFighter: mpSelectFighter,
@@ -245,6 +246,7 @@ const Index = () => {
             onVictory={handleVictory}
             isMultiplayer={isMultiplayer}
             isMyTurn={isMyTurn}
+            isBeingAttacked={isMultiplayer ? isBeingAttacked : undefined}
             opponentName={multiplayerOpponentRef.current?.name}
             waitingForOpponent={isMultiplayer && multiplayerMatch && !bothReady}
           />
