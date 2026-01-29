@@ -492,6 +492,20 @@ export const BattleScreen = ({
         </div>
       )}
 
+      {/* Waiting for opponent's turn (Multiplayer - not my turn to act) */}
+      {isMultiplayer && phase === 'select_action' && !isMyTurn && !waitingForOpponent && (
+        <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-background via-background/90 to-transparent p-6 z-40">
+          <div className="bg-card/90 backdrop-blur-sm rounded-xl p-4 text-center border border-secondary max-w-sm mx-auto">
+            <div className="flex items-center justify-center gap-3">
+              <div className="w-6 h-6 rounded-full border-2 border-secondary border-t-transparent animate-spin" />
+              <span className="font-game-heading text-foreground">
+                {opponentName || 'Opponent'}'s turn...
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Winner Overlay */}
       {winner && phase === 'game_over' && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 animate-scale-in">

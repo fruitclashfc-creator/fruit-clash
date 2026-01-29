@@ -15,7 +15,7 @@ interface ActiveMatch {
   player1_ready: boolean;
   player2_ready: boolean;
   current_turn: string | null;
-  battle_state: BattleState | null;
+  battle_state: DbBattleState | null;
   pending_action: MultiplayerAction | null;
   status: 'waiting_teams' | 'ready' | 'battling' | 'finished';
   winner_id: string | null;
@@ -177,6 +177,7 @@ export const useMultiplayerMatch = () => {
   const [battleState, setBattleState] = useState<BattleState | null>(null);
   const [localSelectedIndex, setLocalSelectedIndex] = useState<number | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const matchIdRef = useRef<string | null>(null);
 
   const isPlayer1 = match && user ? match.player1_id === user.id : false;
   
@@ -186,6 +187,20 @@ export const useMultiplayerMatch = () => {
   // Determine if I should see the defense popup
   // I see defense popup when there's a pending attack targeting ME
   const isBeingAttacked = battleState?.pendingAttack?.isFromBot === true; // "isFromBot" means "from opponent"
+
+  // Process match update (shared logic)
+  const processMatchUpdate = useCallback((updated: ActiveMatch, userId: string) => {
+    console.log('Processing match update:', updated.status, updated.battle_state ? 'has battle' : 'no battle');
+    setMatch(updated);
+    
+    // Transform DB state to local view
+    if (updated.battle_state) {
+      const dbState = updated.battle_state as DbBattleState;
+      const localState = transformToLocalView(dbState, updated, userId);
+      console.log('Setting battle state:', localState.phase, 'turn:', localState.turn);
+      setBattleState(localState);
+    }
+  }, []);
 
   // Create a new match when invitation is accepted
   const createMatch = useCallback(async (opponentId: string, opponentName: string) => {
@@ -208,6 +223,7 @@ export const useMultiplayerMatch = () => {
       
       const matchData = data as unknown as ActiveMatch;
       setMatch(matchData);
+      matchIdRef.current = matchData.id;
       return matchData;
     } catch (err) {
       console.error('Error creating match:', err);
@@ -235,12 +251,11 @@ export const useMultiplayerMatch = () => {
       if (data) {
         const matchData = data as unknown as ActiveMatch;
         setMatch(matchData);
+        matchIdRef.current = matchData.id;
         
         // Load existing battle state immediately if it exists
         if (matchData.battle_state) {
-          const dbState = matchData.battle_state as unknown as DbBattleState;
-          const localState = transformToLocalView(dbState, matchData, user.id);
-          setBattleState(localState);
+          processMatchUpdate(matchData, user.id);
         }
         
         return matchData;
@@ -250,7 +265,7 @@ export const useMultiplayerMatch = () => {
       console.error('Error finding match:', err);
       return null;
     }
-  }, [user]);
+  }, [user, processMatchUpdate]);
 
   // Join or create match
   const joinMatch = useCallback(async (opponentId: string, opponentName: string) => {
@@ -275,6 +290,13 @@ export const useMultiplayerMatch = () => {
         .eq('id', match.id);
 
       if (error) throw error;
+      
+      // Update local match state immediately
+      setMatch(prev => prev ? { 
+        ...prev, 
+        ...(isP1 ? { player1_team: team, player1_ready: true } : { player2_team: team, player2_ready: true })
+      } : null);
+      
       return true;
     } catch (err) {
       console.error('Error submitting team:', err);
@@ -285,6 +307,12 @@ export const useMultiplayerMatch = () => {
   // Initialize battle when both players are ready
   const initializeBattle = useCallback(async (matchData: ActiveMatch) => {
     if (!matchData.player1_team || !matchData.player2_team || !user) return;
+    
+    // Already has battle state - skip initialization
+    if (matchData.battle_state) {
+      console.log('Battle already initialized, skipping');
+      return;
+    }
     
     const coinTossWinnerId = Math.random() > 0.5 ? matchData.player1_id : matchData.player2_id;
     const coinTossWinnerName = coinTossWinnerId === matchData.player1_id 
@@ -307,8 +335,9 @@ export const useMultiplayerMatch = () => {
 
     // Only player1 should update to avoid race conditions
     if (matchData.player1_id === user.id) {
+      console.log('Player 1 initializing battle...');
       try {
-        await supabase
+        const { error } = await supabase
           .from('active_matches')
           .update({ 
             battle_state: dbState as unknown as Json,
@@ -316,9 +345,17 @@ export const useMultiplayerMatch = () => {
             status: 'battling'
           })
           .eq('id', matchData.id);
+          
+        if (error) {
+          console.error('Error initializing battle:', error);
+        } else {
+          console.log('Battle initialized successfully');
+        }
       } catch (err) {
         console.error('Error initializing battle:', err);
       }
+    } else {
+      console.log('Player 2 waiting for Player 1 to initialize battle...');
     }
   }, [user]);
 
@@ -328,8 +365,10 @@ export const useMultiplayerMatch = () => {
 
     const dbState = transformToDbState(newLocalState, match, user.id, localSelectedIndex);
     
+    console.log('Syncing battle state to DB:', dbState.phase);
+    
     try {
-      await supabase
+      const { error } = await supabase
         .from('active_matches')
         .update({ 
           battle_state: dbState as unknown as Json,
@@ -338,6 +377,10 @@ export const useMultiplayerMatch = () => {
           winner_id: dbState.winnerId
         })
         .eq('id', match.id);
+        
+      if (error) {
+        console.error('Error syncing battle state:', error);
+      }
     } catch (err) {
       console.error('Error syncing battle state:', err);
     }
@@ -515,16 +558,23 @@ export const useMultiplayerMatch = () => {
   // Subscribe to match updates
   useEffect(() => {
     if (!match || !user) return;
+    
+    // Don't recreate channel if already watching this match
+    if (matchIdRef.current === match.id && channelRef.current) {
+      return;
+    }
+    
+    matchIdRef.current = match.id;
+    
+    console.log('Setting up realtime subscription for match:', match.id);
 
-    // Immediately load current state if it exists
-    if (match.battle_state && !battleState) {
-      const dbState = match.battle_state as unknown as DbBattleState;
-      const localState = transformToLocalView(dbState, match, user.id);
-      setBattleState(localState);
+    // Clean up existing channel
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
     }
 
     const channel = supabase
-      .channel(`match-${match.id}`)
+      .channel(`match-${match.id}-${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -534,32 +584,57 @@ export const useMultiplayerMatch = () => {
           filter: `id=eq.${match.id}`,
         },
         (payload) => {
+          console.log('Realtime update received:', payload);
           const updated = payload.new as unknown as ActiveMatch;
-          setMatch(updated);
           
           // Check if both players are ready and battle not started
           if (updated.player1_ready && updated.player2_ready && !updated.battle_state) {
+            console.log('Both ready, initializing battle...');
             initializeBattle(updated);
           }
           
-          // Transform DB state to local view
-          if (updated.battle_state) {
-            const dbState = updated.battle_state as unknown as DbBattleState;
-            const localState = transformToLocalView(dbState, updated, user.id);
-            setBattleState(localState);
-          }
+          // Process the update
+          processMatchUpdate(updated, user.id);
         }
       )
       .subscribe((status) => {
         console.log('Multiplayer channel status:', status);
+        
+        // When subscription is ready, fetch latest state
+        if (status === 'SUBSCRIBED') {
+          console.log('Subscription ready, fetching latest match state...');
+          supabase
+            .from('active_matches')
+            .select('*')
+            .eq('id', match.id)
+            .single()
+            .then(({ data, error }) => {
+              if (error) {
+                console.error('Error fetching match:', error);
+                return;
+              }
+              if (data) {
+                const matchData = data as unknown as ActiveMatch;
+                
+                // Check if both ready and need to initialize
+                if (matchData.player1_ready && matchData.player2_ready && !matchData.battle_state) {
+                  initializeBattle(matchData);
+                }
+                
+                processMatchUpdate(matchData, user.id);
+              }
+            });
+        }
       });
 
     channelRef.current = channel;
 
     return () => {
+      console.log('Cleaning up multiplayer subscription');
       supabase.removeChannel(channel);
+      channelRef.current = null;
     };
-  }, [match?.id, user?.id, initializeBattle, battleState]);
+  }, [match?.id, user?.id, initializeBattle, processMatchUpdate]);
 
   // Clean up match
   const leaveMatch = useCallback(async () => {
@@ -572,6 +647,7 @@ export const useMultiplayerMatch = () => {
     setMatch(null);
     setBattleState(null);
     setLocalSelectedIndex(null);
+    matchIdRef.current = null;
   }, [match]);
 
   return {
