@@ -11,6 +11,7 @@ const createTeamMember = (fighter: FruitFighter): TeamMember => ({
   currentHealth: fighter.maxHealth,
   isAlive: true,
   cooldowns: {},
+  abilityUses: {},
 });
 
 export const useBattle = () => {
@@ -77,15 +78,25 @@ export const useBattle = () => {
       const targetMember = prev.opponent.team[targetIndex];
       
       if (!attackerMember.isAlive || !targetMember.isAlive) return prev;
+
+      // Check ability uses
+      const currentUses = attackerMember.abilityUses[ability.id] || 0;
+      if (ability.maxUses !== undefined && currentUses >= ability.maxUses) return prev;
       
-      let newOpponentTeam = [...prev.opponent.team];
-      let newPlayerScore = prev.player.score;
-      let log = '';
+      // Track ability usage
+      const updatedPlayerTeam = [...prev.player.team];
+      updatedPlayerTeam[prev.selectedFighterIndex] = {
+        ...attackerMember,
+        abilityUses: {
+          ...attackerMember.abilityUses,
+          [ability.id]: currentUses + 1,
+        },
+      };
+      const updatedState = { ...prev, player: { ...prev.player, team: updatedPlayerTeam } };
       
       if (ability.type === 'attack' || ability.type === 'special') {
-        // Check if opponent wants to defend (creates pending attack)
         const pendingAttack: PendingAttack = {
-          attacker: attackerMember,
+          attacker: updatedPlayerTeam[prev.selectedFighterIndex],
           target: targetMember,
           ability,
           attackerIndex: prev.selectedFighterIndex,
@@ -94,27 +105,26 @@ export const useBattle = () => {
         
         // For bot opponent, auto-resolve defense
         if (prev.opponent.isBot) {
-          return executeAttack(prev, pendingAttack);
+          return executeAttack(updatedState, pendingAttack);
         }
         
         // For human opponent, show defense choice
         return {
-          ...prev,
+          ...updatedState,
           pendingAttack,
           phase: 'defense_choice',
         };
       } else if (ability.type === 'defense') {
         // Defense abilities give shield to a teammate
-        const newPlayerTeam = [...prev.player.team];
-        newPlayerTeam[prev.selectedFighterIndex] = {
-          ...attackerMember,
+        updatedPlayerTeam[prev.selectedFighterIndex] = {
+          ...updatedPlayerTeam[prev.selectedFighterIndex],
           fighter: { ...attackerMember.fighter, hasShield: true },
         };
-        log = `${attackerMember.fighter.name} uses ${ability.name}!`;
+        const log = `${attackerMember.fighter.name} uses ${ability.name}!`;
         
         return {
-          ...prev,
-          player: { ...prev.player, team: newPlayerTeam },
+          ...updatedState,
+          player: { ...updatedState.player, team: updatedPlayerTeam },
           turn: 'opponent',
           phase: 'select_action',
           selectedFighterIndex: null,

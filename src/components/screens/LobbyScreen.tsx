@@ -1,6 +1,6 @@
 import { GameButton } from '@/components/ui/game-button';
 import { Player, GameScreen } from '@/types/game';
-import { Swords, Settings, LogOut } from 'lucide-react';
+import { Swords, Settings, LogOut, Zap, Gem, ShoppingBag } from 'lucide-react';
 import { LevelProgress } from '@/components/LevelProgress';
 
 interface LobbyScreenProps {
@@ -46,6 +46,20 @@ export const LobbyScreen = ({ player, onNavigate, onLogout, onStartBattle }: Lob
               <LogOut className="w-5 h-5" />
             </GameButton>
           )}
+        </div>
+
+        {/* Currency Bar */}
+        <div className="flex gap-3">
+          <div className="flex-1 flex items-center gap-2 bg-card/80 backdrop-blur-sm rounded-xl px-3 py-2 border border-border">
+            <Zap className="w-4 h-4 text-yellow-400" />
+            <span className="font-game-heading text-sm text-yellow-400">{player.thunderPoints}</span>
+            <span className="text-xs text-muted-foreground">Thunder</span>
+          </div>
+          <div className="flex-1 flex items-center gap-2 bg-card/80 backdrop-blur-sm rounded-xl px-3 py-2 border border-border">
+            <Gem className="w-4 h-4 text-cyan-400" />
+            <span className="font-game-heading text-sm text-cyan-400">{player.gems}</span>
+            <span className="text-xs text-muted-foreground">Gems</span>
+          </div>
         </div>
 
         {/* Level Progress */}
@@ -99,7 +113,7 @@ export const LobbyScreen = ({ player, onNavigate, onLogout, onStartBattle }: Lob
 
       {/* Bottom Navigation */}
       <div className="w-full max-w-lg">
-        <div className="flex justify-center gap-4">
+        <div className="flex justify-center gap-3">
           <GameButton 
             variant="ghost" 
             size="lg"
@@ -107,6 +121,14 @@ export const LobbyScreen = ({ player, onNavigate, onLogout, onStartBattle }: Lob
           >
             <span className="text-2xl">⚔️</span>
             Fighters
+          </GameButton>
+          <GameButton 
+            variant="ghost" 
+            size="lg"
+            onClick={() => onNavigate('shop')}
+          >
+            <ShoppingBag className="w-5 h-5" />
+            Shop
           </GameButton>
           <GameButton 
             variant="ghost" 

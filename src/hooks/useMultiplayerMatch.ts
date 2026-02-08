@@ -65,6 +65,7 @@ const createTeamMember = (fighter: FruitFighter): TeamMember => ({
   currentHealth: fighter.maxHealth,
   isAlive: true,
   cooldowns: {},
+  abilityUses: {},
 });
 
 // Transform DB state to local player's view

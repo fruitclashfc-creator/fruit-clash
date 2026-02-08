@@ -31,11 +31,12 @@ export interface Ability {
   defense: number;
   description: string;
   cooldown: number;
+  maxUses?: number; // Max uses per battle (undefined = unlimited)
   // Special ability flags
-  reflectsDamage?: boolean; // Slime's bounce back - reflects damage to attacker
-  reflectTargetRarity?: ('common' | 'rare')[]; // Which rarities can be reflected
-  canDefendWhileAttacking?: boolean; // Light's beam - blocks attack while dealing damage
-  unstoppable?: boolean; // Buddha's beam - cannot be blocked by Slime
+  reflectsDamage?: boolean;
+  reflectTargetRarity?: ('common' | 'rare')[];
+  canDefendWhileAttacking?: boolean;
+  unstoppable?: boolean;
 }
 
 export interface FruitFighter {
@@ -62,9 +63,30 @@ export interface Player {
   trophies: number;
   level: number;
   totalWins: number;
+  thunderPoints: number;
+  gems: number;
   selectedTeam: FruitFighter[];
   fighters: FruitFighter[];
   avatarUrl?: string | null;
+}
+
+export interface BattleRewards {
+  thunderPoints: number;
+  gems: number;
+  isVictory: boolean;
+}
+
+export type BoxType = 'basic' | 'premium' | 'legendary';
+
+export interface BoxInfo {
+  type: BoxType;
+  name: string;
+  cost: number;
+  emoji: string;
+  description: string;
+  gemChance: number; // probability 0-1
+  gemRange: [number, number]; // min-max gems from box
+  fruitRarityWeights: Record<Rarity, number>;
 }
 
 export interface TeamMember {
@@ -72,6 +94,7 @@ export interface TeamMember {
   currentHealth: number;
   isAlive: boolean;
   cooldowns: Record<string, number>;
+  abilityUses: Record<string, number>; // track uses per ability id
 }
 
 export interface BattlePlayer {
@@ -101,4 +124,4 @@ export interface BattleState {
   selectedFighterIndex: number | null;
 }
 
-export type GameScreen = 'lobby' | 'fighters' | 'team-select' | 'battle' | 'settings';
+export type GameScreen = 'lobby' | 'fighters' | 'team-select' | 'battle' | 'settings' | 'shop';
