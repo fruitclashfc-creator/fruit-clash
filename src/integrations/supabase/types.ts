@@ -131,13 +131,42 @@ export type Database = {
         }
         Relationships: []
       }
+      player_inventory: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          item_type: string
+          quantity: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          item_type: string
+          quantity?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          item_type?: string
+          quantity?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string
+          gems: number
           id: string
           level: number
           name: string
+          thunder_points: number
           total_wins: number
           updated_at: string
           user_id: string
@@ -145,9 +174,11 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          gems?: number
           id?: string
           level?: number
           name?: string
+          thunder_points?: number
           total_wins?: number
           updated_at?: string
           user_id: string
@@ -155,9 +186,11 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          gems?: number
           id?: string
           level?: number
           name?: string
+          thunder_points?: number
           total_wins?: number
           updated_at?: string
           user_id?: string

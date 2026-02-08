@@ -8,6 +8,8 @@ interface Profile {
   name: string;
   level: number;
   total_wins: number;
+  thunder_points: number;
+  gems: number;
   avatar_url: string | null;
 }
 
@@ -68,7 +70,7 @@ export const useAuth = () => {
     }
   };
 
-  const updateProfile = async (updates: Partial<Pick<Profile, 'name' | 'level' | 'total_wins' | 'avatar_url'>>) => {
+  const updateProfile = async (updates: Partial<Pick<Profile, 'name' | 'level' | 'total_wins' | 'avatar_url' | 'thunder_points' | 'gems'>>) => {
     if (!user) return { error: new Error('Not authenticated') };
 
     const { error } = await supabase

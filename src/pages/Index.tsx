@@ -6,15 +6,23 @@ import { TeamSelectScreen } from '@/components/screens/TeamSelectScreen';
 import { BattleScreen } from '@/components/screens/BattleScreen';
 import { SettingsScreen } from '@/components/screens/SettingsScreen';
 import { ProfileScreen } from '@/components/screens/ProfileScreen';
+import { ShopScreen } from '@/components/screens/ShopScreen';
 import { LevelUpNotification } from '@/components/LevelUpNotification';
+import { BattleRewardsPopup } from '@/components/BattleRewardsPopup';
 import { useBattle } from '@/hooks/useBattle';
 import { useAuth } from '@/hooks/useAuth';
-import { Player, GameScreen, FruitFighter } from '@/types/game';
+import { Player, GameScreen, FruitFighter, BattleRewards, Rarity } from '@/types/game';
 import { calculateLevel } from '@/components/LevelProgress';
 import { Loader2 } from 'lucide-react';
 
 // Extended GameScreen type to include profile
 type ExtendedGameScreen = GameScreen | 'profile';
+
+// Reward amounts
+const VICTORY_THUNDER = 30;
+const DEFEAT_THUNDER = 10;
+const VICTORY_GEMS = 5;
+const DEFEAT_GEMS = 1;
 
 const Index = () => {
   const navigate = useNavigate();
@@ -22,6 +30,7 @@ const Index = () => {
   
   const [currentScreen, setCurrentScreen] = useState<ExtendedGameScreen>('lobby');
   const [levelUpNotification, setLevelUpNotification] = useState<number | null>(null);
+  const [battleRewards, setBattleRewards] = useState<BattleRewards | null>(null);
   
   const [player, setPlayer] = useState<Player>({
     id: 'player-1',
@@ -29,6 +38,8 @@ const Index = () => {
     trophies: 0,
     level: 1,
     totalWins: 0,
+    thunderPoints: 100,
+    gems: 10,
     selectedTeam: [],
     fighters: [],
     avatarUrl: null,
@@ -50,6 +61,8 @@ const Index = () => {
         name: profile.name || 'Champion',
         level: profile.level,
         totalWins: profile.total_wins,
+        thunderPoints: profile.thunder_points,
+        gems: profile.gems,
         avatarUrl: profile.avatar_url,
       }));
     }
@@ -97,22 +110,72 @@ const Index = () => {
     const newTotalWins = player.totalWins + 1;
     const oldLevel = player.level;
     const newLevel = calculateLevel(newTotalWins);
+    const newThunder = player.thunderPoints + VICTORY_THUNDER;
+    const newGems = player.gems + VICTORY_GEMS;
     
     setPlayer(prev => ({
       ...prev,
       totalWins: newTotalWins,
       level: newLevel,
+      thunderPoints: newThunder,
+      gems: newGems,
     }));
 
     if (newLevel > oldLevel) {
       setLevelUpNotification(newLevel);
     }
 
+    setBattleRewards({
+      thunderPoints: VICTORY_THUNDER,
+      gems: VICTORY_GEMS,
+      isVictory: true,
+    });
+
     await updateProfile({
       total_wins: newTotalWins,
       level: newLevel,
+      thunder_points: newThunder,
+      gems: newGems,
     });
-  }, [player.totalWins, player.level, updateProfile]);
+  }, [player.totalWins, player.level, player.thunderPoints, player.gems, updateProfile]);
+
+  const handleDefeat = useCallback(async () => {
+    const newThunder = player.thunderPoints + DEFEAT_THUNDER;
+    const newGems = player.gems + DEFEAT_GEMS;
+    
+    setPlayer(prev => ({
+      ...prev,
+      thunderPoints: newThunder,
+      gems: newGems,
+    }));
+
+    setBattleRewards({
+      thunderPoints: DEFEAT_THUNDER,
+      gems: DEFEAT_GEMS,
+      isVictory: false,
+    });
+
+    await updateProfile({
+      thunder_points: newThunder,
+      gems: newGems,
+    });
+  }, [player.thunderPoints, player.gems, updateProfile]);
+
+  const handlePurchaseBox = useCallback(async (cost: number, gemsReceived: number, _fruitRarity: Rarity) => {
+    const newThunder = player.thunderPoints - cost;
+    const newGems = player.gems + gemsReceived;
+    
+    setPlayer(prev => ({
+      ...prev,
+      thunderPoints: newThunder,
+      gems: newGems,
+    }));
+
+    await updateProfile({
+      thunder_points: newThunder,
+      gems: newGems,
+    });
+  }, [player.thunderPoints, player.gems, updateProfile]);
 
   const handleLogout = useCallback(async () => {
     await signOut();
@@ -140,6 +203,13 @@ const Index = () => {
         <LevelUpNotification
           newLevel={levelUpNotification}
           onClose={() => setLevelUpNotification(null)}
+        />
+      )}
+
+      {battleRewards && (
+        <BattleRewardsPopup
+          rewards={battleRewards}
+          onClose={() => setBattleRewards(null)}
         />
       )}
 
@@ -194,6 +264,7 @@ const Index = () => {
             onNavigate={handleNavigate}
             onRestart={restartBattle}
             onVictory={handleVictory}
+            onDefeat={handleDefeat}
           />
         )}
         
@@ -206,6 +277,14 @@ const Index = () => {
             onNavigate={handleNavigate as (screen: GameScreen) => void}
             profile={profile}
             onProfileUpdate={handleProfileUpdate}
+          />
+        )}
+
+        {currentScreen === 'shop' && (
+          <ShopScreen
+            player={player}
+            onNavigate={handleNavigate}
+            onPurchaseBox={handlePurchaseBox}
           />
         )}
       </div>

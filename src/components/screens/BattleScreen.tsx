@@ -17,10 +17,11 @@ interface BattleScreenProps {
   onNavigate: (screen: GameScreen) => void;
   onRestart?: () => void;
   onVictory?: () => void;
+  onDefeat?: () => void;
   // Multiplayer props
   isMultiplayer?: boolean;
   isMyTurn?: boolean;
-  isBeingAttacked?: boolean; // In multiplayer, true when opponent is attacking me
+  isBeingAttacked?: boolean;
   opponentName?: string;
   waitingForOpponent?: boolean;
 }
@@ -37,6 +38,7 @@ export const BattleScreen = ({
   onNavigate,
   onRestart,
   onVictory,
+  onDefeat,
   isMultiplayer = false,
   isMyTurn = true,
   isBeingAttacked,
@@ -63,19 +65,22 @@ export const BattleScreen = ({
 
   const { player, opponent, turn, phase, coinTossWinner, pendingAttack, battleLog, winner, selectedFighterIndex } = battleState;
 
-  // Track victory - use a ref to prevent infinite loops
-  const hasCalledVictory = useRef(false);
+  // Track victory/defeat - use a ref to prevent infinite loops
+  const hasCalledResult = useRef(false);
   
   useEffect(() => {
-    if (winner === 'player' && onVictory && !hasCalledVictory.current) {
-      hasCalledVictory.current = true;
+    if (winner === 'player' && onVictory && !hasCalledResult.current) {
+      hasCalledResult.current = true;
       onVictory();
+    } else if (winner === 'opponent' && onDefeat && !hasCalledResult.current) {
+      hasCalledResult.current = true;
+      onDefeat();
     }
     // Reset when winner changes to null (new battle)
     if (winner === null) {
-      hasCalledVictory.current = false;
+      hasCalledResult.current = false;
     }
-  }, [winner, onVictory]);
+  }, [winner, onVictory, onDefeat]);
 
   // Reset selection when turn changes
   useEffect(() => {
@@ -358,36 +363,55 @@ export const BattleScreen = ({
             </div>
             
             <div className="space-y-3">
-              {player.team[selectedFighterIndex].fighter.abilities.map((ability, i) => (
-                <button
-                  key={ability.id}
-                  onClick={() => handleAbilitySelect(i, ability)}
-                  className={cn(
-                    'w-full p-3 rounded-xl border text-left transition-all',
-                    selectedAbility?.index === i 
-                      ? 'border-primary bg-primary/20' 
-                      : 'border-border hover:border-primary/50',
-                    ability.type === 'attack' && 'hover:bg-destructive/10',
-                    ability.type === 'defense' && 'hover:bg-blue-500/10',
-                    ability.type === 'special' && 'hover:bg-amber-500/10'
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">{ability.name}</span>
-                    <span className={cn(
-                      'text-xs px-2 py-1 rounded-full',
-                      ability.type === 'attack' && 'bg-destructive/20 text-destructive',
-                      ability.type === 'defense' && 'bg-blue-500/20 text-blue-400',
-                      ability.type === 'special' && 'bg-amber-500/20 text-amber-400'
-                    )}>
-                      {ability.type === 'attack' && `${ability.damage} DMG`}
-                      {ability.type === 'defense' && `${ability.defense} DEF`}
-                      {ability.type === 'special' && `${ability.damage} DMG`}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">{ability.description}</p>
-                </button>
-              ))}
+              {player.team[selectedFighterIndex].fighter.abilities.map((ability, i) => {
+                const uses = player.team[selectedFighterIndex].abilityUses[ability.id] || 0;
+                const maxUses = ability.maxUses;
+                const isExhausted = maxUses !== undefined && uses >= maxUses;
+                const remainingUses = maxUses !== undefined ? maxUses - uses : null;
+                
+                return (
+                  <button
+                    key={ability.id}
+                    onClick={() => !isExhausted && handleAbilitySelect(i, ability)}
+                    disabled={isExhausted}
+                    className={cn(
+                      'w-full p-3 rounded-xl border text-left transition-all',
+                      isExhausted && 'opacity-40 cursor-not-allowed',
+                      !isExhausted && selectedAbility?.index === i 
+                        ? 'border-primary bg-primary/20' 
+                        : !isExhausted ? 'border-border hover:border-primary/50' : 'border-border',
+                      !isExhausted && ability.type === 'attack' && 'hover:bg-destructive/10',
+                      !isExhausted && ability.type === 'defense' && 'hover:bg-blue-500/10',
+                      !isExhausted && ability.type === 'special' && 'hover:bg-amber-500/10'
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{ability.name}</span>
+                      <div className="flex items-center gap-2">
+                        {remainingUses !== null && (
+                          <span className={cn(
+                            'text-xs px-2 py-0.5 rounded-full',
+                            isExhausted ? 'bg-muted text-muted-foreground' : 'bg-primary/20 text-primary'
+                          )}>
+                            {isExhausted ? '✗ Used' : `${remainingUses}/${maxUses}`}
+                          </span>
+                        )}
+                        <span className={cn(
+                          'text-xs px-2 py-1 rounded-full',
+                          ability.type === 'attack' && 'bg-destructive/20 text-destructive',
+                          ability.type === 'defense' && 'bg-blue-500/20 text-blue-400',
+                          ability.type === 'special' && 'bg-amber-500/20 text-amber-400'
+                        )}>
+                          {ability.type === 'attack' && `${ability.damage} DMG`}
+                          {ability.type === 'defense' && `${ability.defense} DEF`}
+                          {ability.type === 'special' && `${ability.damage} DMG`}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{ability.description}</p>
+                  </button>
+                );
+              })}
             </div>
             
             {selectedAbility && (
