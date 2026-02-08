@@ -1,18 +1,19 @@
 import { GameButton } from '@/components/ui/game-button';
 import { Player, GameScreen } from '@/types/game';
-import { Swords, Bot, Users, Settings, LogOut } from 'lucide-react';
+import { Swords, Settings, LogOut } from 'lucide-react';
 import { LevelProgress } from '@/components/LevelProgress';
 
 interface LobbyScreenProps {
   player: Player;
   onNavigate: (screen: GameScreen) => void;
   onLogout?: () => void;
+  onStartBattle: () => void;
 }
 
-export const LobbyScreen = ({ player, onNavigate, onLogout }: LobbyScreenProps) => {
+export const LobbyScreen = ({ player, onNavigate, onLogout, onStartBattle }: LobbyScreenProps) => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-between p-4 pb-8 animate-slide-up">
-      {/* Header */}
+      {/* Header with username */}
       <div className="w-full max-w-lg space-y-3">
         <div className="flex items-center justify-between bg-card/80 backdrop-blur-sm rounded-2xl p-4 border border-border">
           {/* Player info */}
@@ -27,6 +28,8 @@ export const LobbyScreen = ({ player, onNavigate, onLogout }: LobbyScreenProps) 
             <div>
               <h2 className="font-game-heading text-lg text-foreground">{player.name}</h2>
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                <span>Level {player.level}</span>
+                <span>•</span>
                 <span>{player.totalWins} Wins</span>
               </div>
             </div>
@@ -80,36 +83,17 @@ export const LobbyScreen = ({ player, onNavigate, onLogout }: LobbyScreenProps) 
           )}
         </div>
 
-        {/* Battle Mode Buttons */}
+        {/* Battle Button */}
         <div className="w-full space-y-4">
           <GameButton 
             variant="primary" 
             size="xl" 
             className="w-full"
-            onClick={() => onNavigate('mode-select')}
+            onClick={onStartBattle}
           >
             <Swords className="w-6 h-6" />
             BATTLE NOW
           </GameButton>
-
-          <div className="grid grid-cols-2 gap-4">
-            <GameButton 
-              variant="secondary" 
-              size="lg"
-              onClick={() => onNavigate('mode-select')}
-            >
-              <Users className="w-5 h-5" />
-              1v1
-            </GameButton>
-            <GameButton 
-              variant="accent" 
-              size="lg"
-              onClick={() => onNavigate('mode-select')}
-            >
-              <Bot className="w-5 h-5" />
-              VS BOT
-            </GameButton>
-          </div>
         </div>
       </div>
 
