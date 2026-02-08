@@ -27,7 +27,7 @@ const createAbility = (
 });
 
 export const FRUIT_FIGHTERS: FruitFighter[] = [
-  // Common Tier
+  // ===== Common Tier =====
   {
     id: 'slime',
     name: 'Slime',
@@ -154,7 +154,7 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     color: 'from-pink-400 to-pink-600',
   },
 
-  // Rare Tier
+  // ===== Rare Tier =====
   {
     id: 'smoke',
     name: 'Smoke',
@@ -225,8 +225,46 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     emoji: '🏜️',
     color: 'from-yellow-600 to-amber-700',
   },
+  // NEW: Barrier
+  {
+    id: 'barrier',
+    name: 'Barrier',
+    fruitType: 'spring', // reuse spring type
+    rarity: 'rare',
+    health: 110,
+    maxHealth: 110,
+    attack: 16,
+    defense: 30,
+    speed: 10,
+    abilities: [
+      createAbility('barrier-1', 'Barrier Crash', 'attack', 24, 0, 'Ram enemies with a solid barrier'),
+      createAbility('barrier-2', 'Bari Bari Wall', 'defense', 0, 50, 'Create an unbreakable barrier wall'),
+      createAbility('barrier-3', 'Barrier Ball', 'special', 40, 0, 'Encase in barrier and charge', 2),
+    ],
+    emoji: '🛡️',
+    color: 'from-violet-400 to-violet-600',
+  },
+  // NEW: Rubber
+  {
+    id: 'rubber',
+    name: 'Rubber',
+    fruitType: 'spring', // reuse spring type
+    rarity: 'rare',
+    health: 105,
+    maxHealth: 105,
+    attack: 26,
+    defense: 16,
+    speed: 22,
+    abilities: [
+      createAbility('rubber-1', 'Gum Pistol', 'attack', 30, 0, 'Stretch arm for a powerful punch'),
+      createAbility('rubber-2', 'Gum Gatling', 'special', 48, 0, 'Rapid barrage of stretchy punches', 2),
+      createAbility('rubber-3', 'Gum Balloon', 'defense', 0, 35, 'Inflate body to deflect attacks'),
+    ],
+    emoji: '🥊',
+    color: 'from-red-400 to-red-600',
+  },
 
-  // Epic Tier
+  // ===== Epic Tier =====
   {
     id: 'dark',
     name: 'Dark',
@@ -280,8 +318,46 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     emoji: '🍡',
     color: 'from-pink-300 to-pink-500',
   },
+  // NEW: Gravity
+  {
+    id: 'gravity',
+    name: 'Gravity',
+    fruitType: 'dark', // reuse dark type
+    rarity: 'epic',
+    health: 110,
+    maxHealth: 110,
+    attack: 34,
+    defense: 18,
+    speed: 16,
+    abilities: [
+      createAbility('gravity-1', 'Gravity Blade', 'attack', 38, 0, 'Slash with gravitational force'),
+      createAbility('gravity-2', 'Gravity Pull', 'special', 55, 0, 'Crush enemies with intense gravity', 3),
+      createAbility('gravity-3', 'Meteor Rain', 'special', 68, 0, 'Pull meteors from the sky', 4),
+    ],
+    emoji: '🪐',
+    color: 'from-indigo-600 to-indigo-900',
+  },
+  // NEW: Portal
+  {
+    id: 'portal',
+    name: 'Portal',
+    fruitType: 'dark', // reuse dark type
+    rarity: 'epic',
+    health: 100,
+    maxHealth: 100,
+    attack: 30,
+    defense: 20,
+    speed: 22,
+    abilities: [
+      createAbility('portal-1', 'Warp Strike', 'attack', 36, 0, 'Teleport behind enemy and strike'),
+      createAbility('portal-2', 'Dimension Rift', 'special', 58, 0, 'Open a rift to another dimension', 3),
+      createAbility('portal-3', 'Void Shield', 'defense', 0, 42, 'Create a portal to absorb attacks'),
+    ],
+    emoji: '🌀',
+    color: 'from-fuchsia-500 to-purple-700',
+  },
 
-  // Mythic Tier
+  // ===== Mythic Tier =====
   {
     id: 'magma',
     name: 'Magma',
@@ -318,8 +394,46 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     emoji: '🦅',
     color: 'from-blue-400 to-cyan-600',
   },
+  // NEW: Venom
+  {
+    id: 'venom',
+    name: 'Venom',
+    fruitType: 'smoke', // reuse smoke type
+    rarity: 'mythic',
+    health: 120,
+    maxHealth: 120,
+    attack: 38,
+    defense: 16,
+    speed: 20,
+    abilities: [
+      createAbility('venom-1', 'Poison Fang', 'attack', 44, 0, 'Inject deadly venom into enemies'),
+      createAbility('venom-2', 'Toxic Cloud', 'special', 70, 0, 'Release a cloud of toxic gas', 4),
+      createAbility('venom-3', 'Venom Demon', 'special', 88, 0, 'Transform into a giant venom demon', 5),
+    ],
+    emoji: '☠️',
+    color: 'from-purple-600 to-green-700',
+  },
+  // NEW: Control
+  {
+    id: 'control',
+    name: 'Control',
+    fruitType: 'dark', // reuse dark type
+    rarity: 'mythic',
+    health: 115,
+    maxHealth: 115,
+    attack: 36,
+    defense: 22,
+    speed: 18,
+    abilities: [
+      createAbility('control-1', 'Room', 'attack', 40, 0, 'Create a sphere of absolute control'),
+      createAbility('control-2', 'Shambles', 'special', 72, 0, 'Rearrange anything in your room', 4),
+      createAbility('control-3', 'Gamma Knife', 'special', 85, 0, 'Internal devastation attack', 5),
+    ],
+    emoji: '⚡',
+    color: 'from-blue-500 to-yellow-500',
+  },
 
-  // Legendary Tier (highest)
+  // ===== Legendary Tier =====
   {
     id: 'dragon',
     name: 'Dragon',
@@ -373,6 +487,44 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     ],
     emoji: '👻',
     color: 'from-pink-500 to-purple-600',
+  },
+  // NEW: Mammoth
+  {
+    id: 'mammoth',
+    name: 'Mammoth',
+    fruitType: 'quake', // reuse quake type
+    rarity: 'legendary',
+    health: 150,
+    maxHealth: 150,
+    attack: 44,
+    defense: 28,
+    speed: 10,
+    abilities: [
+      createAbility('mammoth-1', 'Hybrid Charge', 'attack', 50, 0, 'Massive hybrid beast charge'),
+      createAbility('mammoth-2', 'Mammoth Shield', 'defense', 0, 60, 'Ancient beast armor'),
+      createAbility('mammoth-3', 'Extinction Impact', 'special', 98, 0, 'World-ending stomp', 5),
+    ],
+    emoji: '🦣',
+    color: 'from-amber-600 to-stone-700',
+  },
+  // NEW: Spirit
+  {
+    id: 'spirit',
+    name: 'Spirit',
+    fruitType: 'soul', // reuse soul type
+    rarity: 'legendary',
+    health: 130,
+    maxHealth: 130,
+    attack: 46,
+    defense: 20,
+    speed: 28,
+    abilities: [
+      createAbility('spirit-1', 'Spirit Fist', 'attack', 50, 0, 'Strike with pure spirit energy'),
+      createAbility('spirit-2', 'Astral Form', 'defense', 0, 52, 'Phase into the spirit world'),
+      createAbility('spirit-3', 'Awakening', 'special', 96, 0, 'Unleash full spiritual power', 5),
+    ],
+    emoji: '🔮',
+    color: 'from-cyan-400 to-purple-600',
   },
 ];
 

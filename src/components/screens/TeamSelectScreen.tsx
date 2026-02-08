@@ -37,7 +37,7 @@ export const TeamSelectScreen = ({ onTeamSelected, onNavigate }: TeamSelectScree
     <div className="min-h-screen flex flex-col p-4 animate-slide-up">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <GameButton variant="ghost" size="icon" onClick={() => onNavigate('mode-select')}>
+        <GameButton variant="ghost" size="icon" onClick={() => onNavigate('lobby')}>
           <ArrowLeft className="w-5 h-5" />
         </GameButton>
         <h1 className="font-game-title text-2xl text-glow-orange text-primary">
