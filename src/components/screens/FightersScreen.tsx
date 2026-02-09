@@ -106,11 +106,15 @@ export const FightersScreen = ({ onNavigate }: FightersScreenProps) => {
                         'text-xs px-2 py-0.5 rounded-full',
                         ability.type === 'attack' && 'bg-destructive/20 text-destructive',
                         ability.type === 'defense' && 'bg-accent/20 text-accent',
-                        ability.type === 'special' && 'bg-primary/20 text-primary'
+                        ability.type === 'special' && 'bg-primary/20 text-primary',
+                        ability.type === 'freeze' && 'bg-cyan-500/20 text-cyan-400',
+                        ability.type === 'heal' && 'bg-green-500/20 text-green-400'
                       )}>
                         {ability.type === 'attack' && `${ability.damage} DMG`}
                         {ability.type === 'defense' && `${ability.defense} DEF`}
                         {ability.type === 'special' && `${ability.damage} DMG`}
+                        {ability.type === 'freeze' && `🧊 ${ability.freezeTurns}T`}
+                        {ability.type === 'heal' && `💚 ${ability.healAmount} HP`}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">{ability.description}</p>

@@ -21,7 +21,7 @@ export type FruitType =
 
 export type Rarity = 'common' | 'rare' | 'epic' | 'mythic' | 'legendary';
 
-export type AbilityType = 'attack' | 'defense' | 'special';
+export type AbilityType = 'attack' | 'defense' | 'special' | 'freeze' | 'heal';
 
 export interface Ability {
   id: string;
@@ -37,6 +37,8 @@ export interface Ability {
   reflectTargetRarity?: ('common' | 'rare')[];
   canDefendWhileAttacking?: boolean;
   unstoppable?: boolean;
+  freezeTurns?: number; // Number of turns to freeze target (for freeze abilities)
+  healAmount?: number; // Amount of HP to heal (for heal abilities)
 }
 
 export interface FruitFighter {
@@ -95,6 +97,7 @@ export interface TeamMember {
   isAlive: boolean;
   cooldowns: Record<string, number>;
   abilityUses: Record<string, number>; // track uses per ability id
+  frozenTurns: number; // number of turns this fighter is frozen (0 = not frozen)
 }
 
 export interface BattlePlayer {

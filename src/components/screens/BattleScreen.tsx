@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { GameButton } from '@/components/ui/game-button';
 import { HealthBar } from '@/components/HealthBar';
 import { BattleState, GameScreen, TeamMember, Ability } from '@/types/game';
-import { ArrowLeft, RotateCcw, Shield, Swords, X } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Shield, Swords, X, Snowflake, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getRarityColor } from '@/data/fighters';
 import { BattleAnimations, useBattleAnimations } from '@/components/BattleAnimations';
@@ -112,10 +112,10 @@ export const BattleScreen = ({
   }, [pendingAttack, phase]);
 
   const handleFighterClick = (index: number) => {
-    // In multiplayer, also check isMyTurn
     const canAct = isMultiplayer ? isMyTurn : turn === 'player';
     if (phase !== 'select_action' || !canAct) return;
     if (!player.team[index].isAlive) return;
+    if (player.team[index].frozenTurns > 0) return; // Can't use frozen fighters
     
     onSelectFighter(index);
     setShowAbilityPopup(true);
@@ -128,6 +128,16 @@ export const BattleScreen = ({
 
   const handleTargetSelect = (targetIndex: number) => {
     if (!selectedAbility || selectedFighterIndex === null) return;
+    
+    // Heal targets friendly team
+    if (selectedAbility.ability.type === 'heal') {
+      if (!player.team[targetIndex].isAlive) return;
+      onUseAbility(selectedAbility.index, targetIndex);
+      setShowAbilityPopup(false);
+      setSelectedAbility(null);
+      return;
+    }
+    
     if (!opponent.team[targetIndex].isAlive) return;
     
     // Fire projectile animation
@@ -136,7 +146,6 @@ export const BattleScreen = ({
     
     fireProjectile(fromRef, toRef, selectedAbility.ability.type, player.team[selectedFighterIndex].fighter.emoji);
     
-    // Spawn impact particles after delay
     setTimeout(() => {
       spawnParticles(toRef, selectedAbility.ability.type === 'special' ? 'special' : 'hit');
       triggerScreenShake(selectedAbility.ability.type === 'special' ? 'heavy' : 'light');
@@ -168,17 +177,24 @@ export const BattleScreen = ({
     onSkipDefense();
   };
 
-  // Find fighters with shield ability for defense options
+  // Find fighters with defense ability that still have uses left
   const defendersWithShield = player.team
     .map((m, i) => ({ member: m, index: i }))
-    .filter(({ member }) => 
-      member.isAlive && member.fighter.abilities.some(a => a.type === 'defense')
-    );
+    .filter(({ member }) => {
+      if (!member.isAlive) return false;
+      return member.fighter.abilities.some(a => {
+        if (a.type !== 'defense' && !a.canDefendWhileAttacking) return false;
+        const uses = member.abilityUses[a.id] || 0;
+        return a.maxUses === undefined || uses < a.maxUses;
+      });
+    });
 
   const renderFighterSlot = (member: TeamMember, index: number, isPlayer: boolean) => {
     const isSelected = isPlayer && selectedFighterIndex === index;
-    const isTargetable = !isPlayer && selectedAbility && member.isAlive;
+    const isHealTarget = isPlayer && selectedAbility?.ability.type === 'heal' && member.isAlive;
+    const isTargetable = !isPlayer && selectedAbility && selectedAbility.ability.type !== 'heal' && member.isAlive;
     const isDamaged = damagedIndex?.isPlayer === isPlayer && damagedIndex?.index === index;
+    const isFrozen = member.frozenTurns > 0;
     
     return (
       <div
@@ -190,14 +206,24 @@ export const BattleScreen = ({
             opponentFighterRefs.current[index] = el;
           }
         }}
-        onClick={() => isPlayer ? handleFighterClick(index) : (isTargetable && handleTargetSelect(index))}
+        onClick={() => {
+          if (isHealTarget) {
+            handleTargetSelect(index);
+          } else if (isPlayer) {
+            handleFighterClick(index);
+          } else if (isTargetable) {
+            handleTargetSelect(index);
+          }
+        }}
         className={cn(
           'flex flex-col items-center p-2 rounded-xl transition-all cursor-pointer',
           'w-16 sm:w-20',
           member.isAlive ? 'opacity-100' : 'opacity-40 grayscale',
           isSelected && 'ring-2 ring-primary scale-110',
           isTargetable && 'ring-2 ring-destructive animate-pulse',
-          isPlayer && turn === 'player' && member.isAlive && 'hover:scale-105',
+          isHealTarget && 'ring-2 ring-green-400 animate-pulse',
+          isPlayer && turn === 'player' && member.isAlive && !isFrozen && 'hover:scale-105',
+          isFrozen && member.isAlive && 'ring-2 ring-cyan-400',
           isDamaged && 'animate-damage-flash'
         )}
       >
@@ -205,11 +231,15 @@ export const BattleScreen = ({
           'w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center bg-gradient-to-br border relative',
           member.fighter.color,
           isPlayer ? 'border-primary/50' : 'border-destructive/50',
-          member.fighter.hasShield && 'ring-2 ring-blue-400'
+          member.fighter.hasShield && 'ring-2 ring-blue-400',
+          isFrozen && member.isAlive && 'bg-cyan-200/30'
         )}>
-          <span className="text-2xl sm:text-3xl">{member.fighter.emoji}</span>
+          <span className={cn("text-2xl sm:text-3xl", isFrozen && member.isAlive && "opacity-60")}>{member.fighter.emoji}</span>
           {member.fighter.hasShield && (
             <Shield className="absolute -top-1 -right-1 w-4 h-4 text-blue-400" />
+          )}
+          {isFrozen && member.isAlive && (
+            <Snowflake className="absolute -top-1 -left-1 w-4 h-4 text-cyan-400 animate-pulse" />
           )}
         </div>
         <span className={cn(
@@ -218,6 +248,9 @@ export const BattleScreen = ({
         )}>
           {member.fighter.name}
         </span>
+        {isFrozen && member.isAlive && (
+          <span className="text-[10px] text-cyan-400 font-bold">❄️ {member.frozenTurns}T</span>
+        )}
         <HealthBar 
           current={member.currentHealth} 
           max={member.fighter.maxHealth}
@@ -382,7 +415,9 @@ export const BattleScreen = ({
                         : !isExhausted ? 'border-border hover:border-primary/50' : 'border-border',
                       !isExhausted && ability.type === 'attack' && 'hover:bg-destructive/10',
                       !isExhausted && ability.type === 'defense' && 'hover:bg-blue-500/10',
-                      !isExhausted && ability.type === 'special' && 'hover:bg-amber-500/10'
+                      !isExhausted && ability.type === 'special' && 'hover:bg-amber-500/10',
+                      !isExhausted && ability.type === 'freeze' && 'hover:bg-cyan-500/10',
+                      !isExhausted && ability.type === 'heal' && 'hover:bg-green-500/10'
                     )}
                   >
                     <div className="flex items-center justify-between">
@@ -400,11 +435,15 @@ export const BattleScreen = ({
                           'text-xs px-2 py-1 rounded-full',
                           ability.type === 'attack' && 'bg-destructive/20 text-destructive',
                           ability.type === 'defense' && 'bg-blue-500/20 text-blue-400',
-                          ability.type === 'special' && 'bg-amber-500/20 text-amber-400'
+                          ability.type === 'special' && 'bg-amber-500/20 text-amber-400',
+                          ability.type === 'freeze' && 'bg-cyan-500/20 text-cyan-400',
+                          ability.type === 'heal' && 'bg-green-500/20 text-green-400'
                         )}>
                           {ability.type === 'attack' && `${ability.damage} DMG`}
                           {ability.type === 'defense' && `${ability.defense} DEF`}
                           {ability.type === 'special' && `${ability.damage} DMG`}
+                          {ability.type === 'freeze' && `🧊 ${ability.freezeTurns}T`}
+                          {ability.type === 'heal' && `💚 ${ability.healAmount} HP`}
                         </span>
                       </div>
                     </div>
@@ -418,7 +457,11 @@ export const BattleScreen = ({
               <p className="text-sm text-primary text-center mt-4">
                 {selectedAbility.ability.type === 'defense' 
                   ? 'Click to apply shield!' 
-                  : 'Now click an enemy to attack!'}
+                  : selectedAbility.ability.type === 'heal'
+                    ? '💚 Click a teammate to heal!'
+                    : selectedAbility.ability.type === 'freeze'
+                      ? '🧊 Click an enemy to freeze!'
+                      : 'Now click an enemy to attack!'}
               </p>
             )}
           </div>
@@ -430,15 +473,19 @@ export const BattleScreen = ({
         <div className="fixed inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center z-50 animate-scale-in">
           <div className="bg-card rounded-2xl p-6 border-2 border-destructive max-w-md mx-4 w-full">
             <div className="text-center mb-4">
-              <span className="text-5xl mb-3 block animate-bounce">⚔️</span>
-              <h3 className="font-game-title text-2xl text-destructive">INCOMING ATTACK!</h3>
+              <span className="text-5xl mb-3 block animate-bounce">{pendingAttack.ability.type === 'freeze' ? '🧊' : '⚔️'}</span>
+              <h3 className="font-game-title text-2xl text-destructive">
+                {pendingAttack.ability.type === 'freeze' ? 'INCOMING FREEZE!' : 'INCOMING ATTACK!'}
+              </h3>
               <p className="text-sm text-muted-foreground mt-2">
                 <span className="font-semibold text-foreground">{pendingAttack.attacker.fighter.name}</span> is using{' '}
                 <span className="font-semibold text-amber-400">{pendingAttack.ability.name}</span> on{' '}
                 <span className="font-semibold text-primary">{pendingAttack.target.fighter.name}</span>!
               </p>
               <p className="text-xs text-destructive mt-1">
-                Potential damage: ~{pendingAttack.ability.damage} HP
+                {pendingAttack.ability.type === 'freeze' 
+                  ? `Will freeze for ${pendingAttack.ability.freezeTurns} turns!`
+                  : `Potential damage: ~${pendingAttack.ability.damage} HP`}
               </p>
             </div>
             
