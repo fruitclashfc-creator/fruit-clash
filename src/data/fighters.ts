@@ -47,8 +47,8 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
         maxUses: 2,
       }),
     ],
-    emoji: '🟪',
-    color: 'from-pink-400 to-pink-600',
+    emoji: '🫧',
+    color: 'from-emerald-400 to-teal-600',
   },
   {
     id: 'light',
@@ -67,8 +67,8 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
         maxUses: 2,
       }),
     ],
-    emoji: '⭐',
-    color: 'from-yellow-200 to-amber-400',
+    emoji: '💫',
+    color: 'from-amber-300 to-yellow-500',
   },
   {
     id: 'buddha',
@@ -87,8 +87,8 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
         maxUses: 1,
       }),
     ],
-    emoji: '☸️',
-    color: 'from-yellow-400 to-amber-500',
+    emoji: '🔱',
+    color: 'from-amber-500 to-orange-700',
   },
   {
     id: 'bomb',
