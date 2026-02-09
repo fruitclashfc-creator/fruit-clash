@@ -4,7 +4,7 @@ import { FruitFighter, Ability } from '@/types/game';
 const createAbility = (
   id: string,
   name: string,
-  type: 'attack' | 'defense' | 'special',
+  type: 'attack' | 'defense' | 'special' | 'freeze' | 'heal',
   damage: number,
   defense: number,
   description: string,
@@ -15,6 +15,8 @@ const createAbility = (
     canDefendWhileAttacking?: boolean;
     unstoppable?: boolean;
     maxUses?: number;
+    freezeTurns?: number;
+    healAmount?: number;
   }
 ): Ability => ({
   id,
@@ -194,7 +196,7 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     emoji: '🔥',
     color: 'from-orange-500 to-red-600',
   },
-  {
+   {
     id: 'ice',
     name: 'Ice',
     fruitType: 'ice',
@@ -207,7 +209,7 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     abilities: [
       createAbility('ice-1', 'Ice Saber', 'attack', 26, 0, 'Slash with a frozen blade', 0, { maxUses: 5 }),
       createAbility('ice-2', 'Ice Wall', 'defense', 0, 40, 'Create an impenetrable ice barrier', 0, { maxUses: 3 }),
-      createAbility('ice-3', 'Ice Age', 'special', 55, 0, 'Freeze the entire battlefield', 3, { maxUses: 1 }),
+      createAbility('ice-3', 'Deep Freeze', 'freeze', 0, 0, 'Freeze an enemy solid for 3 turns', 0, { maxUses: 2, freezeTurns: 3 }),
     ],
     emoji: '❄️',
     color: 'from-cyan-400 to-blue-600',
@@ -316,7 +318,7 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     speed: 14,
     abilities: [
       createAbility('dough-1', 'Mochi Punch', 'attack', 34, 0, 'Sticky powerful strike', 0, { maxUses: 4 }),
-      createAbility('dough-2', 'Mochi Shield', 'defense', 0, 45, 'Absorbing dough barrier', 0, { maxUses: 2 }),
+      createAbility('dough-2', 'Mochi Heal', 'heal', 0, 0, 'Wrap a teammate in healing dough', 0, { maxUses: 2, healAmount: 35 }),
       createAbility('dough-3', 'Buzz Cut Mochi', 'special', 62, 0, 'Spinning dough assault', 3, { maxUses: 2 }),
     ],
     emoji: '🍡',
@@ -345,7 +347,7 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
   {
     id: 'portal',
     name: 'Portal',
-    fruitType: 'dark', // reuse dark type
+    fruitType: 'dark',
     rarity: 'epic',
     health: 100,
     maxHealth: 100,
@@ -354,7 +356,7 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     speed: 22,
     abilities: [
       createAbility('portal-1', 'Warp Strike', 'attack', 36, 0, 'Teleport behind enemy and strike', 0, { maxUses: 4 }),
-      createAbility('portal-2', 'Dimension Rift', 'special', 58, 0, 'Open a rift to another dimension', 3, { maxUses: 2 }),
+      createAbility('portal-2', 'Dimension Freeze', 'freeze', 0, 0, 'Trap enemy in a frozen dimension for 2 turns', 0, { maxUses: 2, freezeTurns: 2 }),
       createAbility('portal-3', 'Void Shield', 'defense', 0, 42, 'Create a portal to absorb attacks', 0, { maxUses: 2 }),
     ],
     emoji: '🌀',
@@ -380,7 +382,7 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     emoji: '🌋',
     color: 'from-red-600 to-orange-700',
   },
-  {
+   {
     id: 'phoenix',
     name: 'Phoenix',
     fruitType: 'phoenix',
@@ -392,7 +394,7 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     speed: 26,
     abilities: [
       createAbility('phoenix-1', 'Blue Flames', 'attack', 42, 0, 'Healing blue fire attack', 0, { maxUses: 4 }),
-      createAbility('phoenix-2', 'Regeneration', 'defense', 0, 50, 'Heal and protect with flames', 0, { maxUses: 2 }),
+      createAbility('phoenix-2', 'Healing Flames', 'heal', 0, 0, 'Heal a teammate with regenerating flames', 0, { maxUses: 2, healAmount: 40 }),
       createAbility('phoenix-3', 'Rebirth', 'special', 80, 0, 'Rise from ashes with power', 5, { maxUses: 1 }),
     ],
     emoji: '🦅',
@@ -421,7 +423,7 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
   {
     id: 'control',
     name: 'Control',
-    fruitType: 'dark', // reuse dark type
+    fruitType: 'dark',
     rarity: 'mythic',
     health: 115,
     maxHealth: 115,
@@ -430,7 +432,7 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     speed: 18,
     abilities: [
       createAbility('control-1', 'Room', 'attack', 40, 0, 'Create a sphere of absolute control', 0, { maxUses: 4 }),
-      createAbility('control-2', 'Shambles', 'special', 72, 0, 'Rearrange anything in your room', 4, { maxUses: 2 }),
+      createAbility('control-2', 'Shambles', 'freeze', 0, 0, 'Rearrange and freeze target for 4 turns', 0, { maxUses: 1, freezeTurns: 4 }),
       createAbility('control-3', 'Gamma Knife', 'special', 85, 0, 'Internal devastation attack', 5, { maxUses: 1 }),
     ],
     emoji: '⚡',
@@ -486,7 +488,7 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     speed: 20,
     abilities: [
       createAbility('soul-1', 'Soul Steal', 'attack', 45, 0, 'Drain life force from enemy', 0, { maxUses: 4 }),
-      createAbility('soul-2', 'Homie Defense', 'defense', 0, 50, 'Summon homies to protect', 0, { maxUses: 2 }),
+      createAbility('soul-2', 'Soul Mend', 'heal', 0, 0, 'Restore a soul to heal a teammate', 0, { maxUses: 2, healAmount: 50 }),
       createAbility('soul-3', 'Soul Pocus', 'special', 95, 0, 'Command over souls', 5, { maxUses: 1 }),
     ],
     emoji: '👻',

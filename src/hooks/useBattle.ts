@@ -12,7 +12,15 @@ const createTeamMember = (fighter: FruitFighter): TeamMember => ({
   isAlive: true,
   cooldowns: {},
   abilityUses: {},
+  frozenTurns: 0,
 });
+
+// Decrement frozen turns for all team members at end of a turn
+const tickFrozenTurns = (team: TeamMember[]): TeamMember[] =>
+  team.map(m => m.frozenTurns > 0
+    ? { ...m, frozenTurns: m.frozenTurns - 1 }
+    : m
+  );
 
 export const useBattle = () => {
   const [battleState, setBattleState] = useState<BattleState | null>(null);
@@ -47,7 +55,6 @@ export const useBattle = () => {
     setBattleState(prev => {
       if (!prev) return prev;
       
-      // If bot goes first, trigger bot action
       if (prev.turn === 'opponent' && prev.opponent.isBot) {
         setTimeout(() => executeBotTurn(), 1000);
       }
@@ -75,9 +82,8 @@ export const useBattle = () => {
       
       const attackerMember = prev.player.team[prev.selectedFighterIndex];
       const ability = attackerMember.fighter.abilities[abilityIndex];
-      const targetMember = prev.opponent.team[targetIndex];
       
-      if (!attackerMember.isAlive || !targetMember.isAlive) return prev;
+      if (!attackerMember.isAlive) return prev;
 
       // Check ability uses
       const currentUses = attackerMember.abilityUses[ability.id] || 0;
@@ -93,8 +99,63 @@ export const useBattle = () => {
         },
       };
       const updatedState = { ...prev, player: { ...prev.player, team: updatedPlayerTeam } };
+
+      // === HEAL ABILITY ===
+      if (ability.type === 'heal') {
+        const healTarget = updatedPlayerTeam[targetIndex];
+        if (!healTarget.isAlive) return prev;
+        const healAmount = ability.healAmount || 30;
+        const newHealth = Math.min(healTarget.fighter.maxHealth, healTarget.currentHealth + healAmount);
+        updatedPlayerTeam[targetIndex] = {
+          ...healTarget,
+          currentHealth: newHealth,
+          fighter: { ...healTarget.fighter, currentHealth: newHealth },
+        };
+        const log = `💚 ${attackerMember.fighter.name} uses ${ability.name} to heal ${healTarget.fighter.name} for ${healAmount} HP!`;
+        
+        // Tick frozen turns for opponent at end of player turn
+        const tickedOpponentTeam = tickFrozenTurns(prev.opponent.team);
+        
+        return {
+          ...updatedState,
+          player: { ...updatedState.player, team: updatedPlayerTeam },
+          opponent: { ...prev.opponent, team: tickedOpponentTeam },
+          turn: 'opponent',
+          phase: 'select_action',
+          selectedFighterIndex: null,
+          battleLog: [...prev.battleLog, log],
+        };
+      }
+
+      // === FREEZE ABILITY ===
+      if (ability.type === 'freeze') {
+        const freezeTarget = prev.opponent.team[targetIndex];
+        if (!freezeTarget.isAlive) return prev;
+        
+        const pendingAttack: PendingAttack = {
+          attacker: updatedPlayerTeam[prev.selectedFighterIndex],
+          target: freezeTarget,
+          ability,
+          attackerIndex: prev.selectedFighterIndex,
+          targetIndex,
+        };
+        
+        // For bot opponent, auto-resolve (no defense)
+        if (prev.opponent.isBot) {
+          return executeAttack(updatedState, pendingAttack);
+        }
+        
+        return {
+          ...updatedState,
+          pendingAttack,
+          phase: 'defense_choice',
+        };
+      }
       
       if (ability.type === 'attack' || ability.type === 'special') {
+        const targetMember = prev.opponent.team[targetIndex];
+        if (!targetMember.isAlive) return prev;
+
         const pendingAttack: PendingAttack = {
           attacker: updatedPlayerTeam[prev.selectedFighterIndex],
           target: targetMember,
@@ -103,28 +164,29 @@ export const useBattle = () => {
           targetIndex,
         };
         
-        // For bot opponent, auto-resolve defense
         if (prev.opponent.isBot) {
           return executeAttack(updatedState, pendingAttack);
         }
         
-        // For human opponent, show defense choice
         return {
           ...updatedState,
           pendingAttack,
           phase: 'defense_choice',
         };
       } else if (ability.type === 'defense') {
-        // Defense abilities give shield to a teammate
         updatedPlayerTeam[prev.selectedFighterIndex] = {
           ...updatedPlayerTeam[prev.selectedFighterIndex],
           fighter: { ...attackerMember.fighter, hasShield: true },
         };
         const log = `${attackerMember.fighter.name} uses ${ability.name}!`;
         
+        // Tick frozen turns for opponent at end of player turn
+        const tickedOpponentTeam = tickFrozenTurns(prev.opponent.team);
+        
         return {
           ...updatedState,
           player: { ...updatedState.player, team: updatedPlayerTeam },
+          opponent: { ...prev.opponent, team: tickedOpponentTeam },
           turn: 'opponent',
           phase: 'select_action',
           selectedFighterIndex: null,
@@ -140,36 +202,101 @@ export const useBattle = () => {
     const { attacker, target, ability, targetIndex, attackerIndex, isFromBot } = pendingAttack;
     const isPlayerBeingAttacked = isFromBot === true;
     
-    // Get the right teams based on who is being attacked
     let targetTeam = isPlayerBeingAttacked ? [...state.player.team] : [...state.opponent.team];
     let attackerTeam = isPlayerBeingAttacked ? [...state.opponent.team] : [...state.player.team];
     let attackerScore = isPlayerBeingAttacked ? state.opponent.score : state.player.score;
     let defenderScore = isPlayerBeingAttacked ? state.player.score : state.opponent.score;
     
     const logs: string[] = [];
+
+    // Check if defender used a defense ability — track its usage
+    if (useDefender !== undefined) {
+      const defender = targetTeam[useDefender];
+      const defenseAbility = defender?.fighter.abilities.find(a => a.type === 'defense' || a.canDefendWhileAttacking);
+      if (defenseAbility) {
+        const defUses = defender.abilityUses[defenseAbility.id] || 0;
+        targetTeam[useDefender] = {
+          ...defender,
+          abilityUses: {
+            ...defender.abilityUses,
+            [defenseAbility.id]: defUses + 1,
+          },
+        };
+      }
+    }
+
+    // === FREEZE RESOLUTION ===
+    if (ability.type === 'freeze') {
+      const hasDefense = target.fighter.hasShield || useDefender !== undefined;
+      if (hasDefense) {
+        logs.push(`🛡️ Defended! ${attacker.fighter.name}'s freeze on ${target.fighter.name} was blocked!`);
+        // Clear shield
+        targetTeam[targetIndex] = {
+          ...targetTeam[targetIndex],
+          fighter: { ...target.fighter, hasShield: false },
+        };
+      } else {
+        const freezeTurns = ability.freezeTurns || 3;
+        targetTeam[targetIndex] = {
+          ...targetTeam[targetIndex],
+          frozenTurns: freezeTurns,
+          fighter: { ...target.fighter, hasShield: false },
+        };
+        logs.push(`🧊 ${attacker.fighter.name} uses ${ability.name}! ${target.fighter.name} is frozen for ${freezeTurns} turns!`);
+        attackerScore += POINTS_FOR_DAMAGE;
+      }
+      
+      const winner = attackerScore >= WINNING_SCORE 
+        ? (isPlayerBeingAttacked ? 'opponent' : 'player') 
+        : defenderScore >= WINNING_SCORE 
+          ? (isPlayerBeingAttacked ? 'player' : 'opponent')
+          : null;
+      
+      const nextTurn = winner ? state.turn : (isPlayerBeingAttacked ? 'player' : 'opponent');
+      
+      // Tick frozen turns for the side whose turn just ended
+      const tickedAttackerTeam = tickFrozenTurns(attackerTeam);
+      
+      const newState: BattleState = {
+        ...state,
+        player: isPlayerBeingAttacked 
+          ? { ...state.player, team: targetTeam, score: defenderScore }
+          : { ...state.player, team: tickedAttackerTeam, score: attackerScore },
+        opponent: isPlayerBeingAttacked
+          ? { ...state.opponent, team: tickedAttackerTeam, score: attackerScore }
+          : { ...state.opponent, team: targetTeam, score: defenderScore },
+        turn: nextTurn,
+        phase: winner ? 'game_over' : 'select_action',
+        pendingAttack: null,
+        selectedFighterIndex: null,
+        battleLog: [...state.battleLog, ...logs],
+        winner,
+      };
+      
+      if (!winner && nextTurn === 'opponent' && state.opponent.isBot) {
+        setTimeout(() => executeBotTurn(), 1500);
+      }
+      
+      return newState;
+    }
     
-    // Calculate damage
+    // === NORMAL ATTACK RESOLUTION ===
     let damage = ability.damage;
     const defense = target.fighter.defense;
     const actualDamage = Math.max(5, damage - Math.floor(defense * 0.3) + Math.floor(Math.random() * 10 - 5));
     
-    // Check if defender is using a defense ability with special properties
     let defenderAbility: Ability | undefined;
     if (useDefender !== undefined) {
       const defender = targetTeam[useDefender];
-      // Find the defense ability being used
       defenderAbility = defender?.fighter.abilities.find(a => a.type === 'defense' || a.canDefendWhileAttacking);
     }
     
-    // Check for Slime's Bounce Back (reflect damage)
     const isReflected = defenderAbility?.reflectsDamage && 
-      !ability.unstoppable && // Buddha's attack cannot be reflected
+      !ability.unstoppable &&
       defenderAbility.reflectTargetRarity?.includes(attacker.fighter.rarity as 'common' | 'rare');
     
-    // Check for Light's Radiant Beam (defend while attacking)
     const counterAttackDamage = defenderAbility?.canDefendWhileAttacking ? defenderAbility.damage : 0;
     
-    // Apply shield - completely blocks damage if target has shield or defender was used
     const hasDefense = target.fighter.hasShield || useDefender !== undefined;
     const finalDamage = hasDefense ? 0 : actualDamage;
     
@@ -183,7 +310,6 @@ export const useBattle = () => {
       fighter: { ...target.fighter, currentHealth: newHealth, isAlive: newHealth > 0, hasShield: false },
     };
     
-    // Award points to attacker for dealing damage
     if (finalDamage > 0) {
       attackerScore += POINTS_FOR_DAMAGE;
     }
@@ -198,7 +324,6 @@ export const useBattle = () => {
     }
     logs.push(log);
     
-    // Handle reflection damage (Slime's Bounce Back)
     if (isReflected) {
       const reflectDamage = defenderAbility!.damage;
       const attackerNewHealth = Math.max(0, attacker.currentHealth - reflectDamage);
@@ -220,7 +345,6 @@ export const useBattle = () => {
       defenderScore += POINTS_FOR_DAMAGE;
     }
     
-    // Handle counter-attack damage (Light's Radiant Beam)
     if (counterAttackDamage > 0 && !isReflected) {
       const attackerNewHealth = Math.max(0, attacker.currentHealth - counterAttackDamage);
       const attackerWasKilled = attackerNewHealth === 0 && attacker.isAlive;
@@ -241,23 +365,24 @@ export const useBattle = () => {
       defenderScore += POINTS_FOR_DAMAGE;
     }
     
-    // Check for winner
     const winner = attackerScore >= WINNING_SCORE 
       ? (isPlayerBeingAttacked ? 'opponent' : 'player') 
       : defenderScore >= WINNING_SCORE 
         ? (isPlayerBeingAttacked ? 'player' : 'opponent')
         : null;
     
-    // Determine next turn
     const nextTurn = winner ? state.turn : (isPlayerBeingAttacked ? 'player' : 'opponent');
+
+    // Tick frozen turns for the side whose turn just ended
+    const tickedAttackerTeam = tickFrozenTurns(attackerTeam);
     
     const newState: BattleState = {
       ...state,
       player: isPlayerBeingAttacked 
         ? { ...state.player, team: targetTeam, score: defenderScore }
-        : { ...state.player, team: attackerTeam, score: attackerScore },
+        : { ...state.player, team: tickedAttackerTeam, score: attackerScore },
       opponent: isPlayerBeingAttacked
-        ? { ...state.opponent, team: attackerTeam, score: attackerScore }
+        ? { ...state.opponent, team: tickedAttackerTeam, score: attackerScore }
         : { ...state.opponent, team: targetTeam, score: defenderScore },
       turn: nextTurn,
       phase: winner ? 'game_over' : 'select_action',
@@ -267,7 +392,6 @@ export const useBattle = () => {
       winner,
     };
     
-    // Trigger bot turn if it's now opponent's turn and opponent is bot
     if (!winner && nextTurn === 'opponent' && state.opponent.isBot) {
       setTimeout(() => executeBotTurn(), 1500);
     }
@@ -293,22 +417,96 @@ export const useBattle = () => {
     setBattleState(prev => {
       if (!prev || prev.turn !== 'opponent' || prev.winner) return prev;
       
-      // Find alive bot fighters
+      // Find alive AND not-frozen bot fighters
       const aliveFighters = prev.opponent.team
         .map((m, i) => ({ member: m, index: i }))
-        .filter(({ member }) => member.isAlive);
+        .filter(({ member }) => member.isAlive && member.frozenTurns <= 0);
       
-      if (aliveFighters.length === 0) return prev;
+      if (aliveFighters.length === 0) {
+        // All alive fighters are frozen — skip turn, tick frozen
+        const tickedBotTeam = tickFrozenTurns(prev.opponent.team);
+        return {
+          ...prev,
+          opponent: { ...prev.opponent, team: tickedBotTeam },
+          turn: 'player',
+          battleLog: [...prev.battleLog, `❄️ All opponent fighters are frozen! Turn skipped.`],
+        };
+      }
       
-      // Pick random alive fighter
       const { member: botFighter, index: botIndex } = 
         aliveFighters[Math.floor(Math.random() * aliveFighters.length)];
       
-      // Pick random ability (prefer attack abilities)
-      const attackAbilities = botFighter.fighter.abilities.filter(a => a.type === 'attack' || a.type === 'special');
+      // Pick random ability (prefer attack, sometimes freeze/heal)
+      const usableAbilities = botFighter.fighter.abilities.filter(a => {
+        const uses = botFighter.abilityUses[a.id] || 0;
+        return a.maxUses === undefined || uses < a.maxUses;
+      });
+      
+      if (usableAbilities.length === 0) {
+        // No abilities left, skip turn
+        const tickedBotTeam = tickFrozenTurns(prev.opponent.team);
+        return {
+          ...prev,
+          opponent: { ...prev.opponent, team: tickedBotTeam },
+          turn: 'player',
+          battleLog: [...prev.battleLog, `${botFighter.fighter.name} has no abilities left! Turn skipped.`],
+        };
+      }
+
+      const attackAbilities = usableAbilities.filter(a => a.type === 'attack' || a.type === 'special' || a.type === 'freeze');
+      const healAbilities = usableAbilities.filter(a => a.type === 'heal');
+      const defenseAbilities = usableAbilities.filter(a => a.type === 'defense');
+      
+      // Bot AI: heal if any teammate is low
+      const hurtTeammates = prev.opponent.team
+        .map((m, i) => ({ member: m, index: i }))
+        .filter(({ member }) => member.isAlive && member.currentHealth < member.fighter.maxHealth * 0.4);
+      
+      if (healAbilities.length > 0 && hurtTeammates.length > 0 && Math.random() > 0.5) {
+        const healAbility = healAbilities[0];
+        const healTarget = hurtTeammates[Math.floor(Math.random() * hurtTeammates.length)];
+        const healAmount = healAbility.healAmount || 30;
+        
+        const newBotTeam = [...prev.opponent.team];
+        const currentUses = botFighter.abilityUses[healAbility.id] || 0;
+        newBotTeam[botIndex] = {
+          ...botFighter,
+          abilityUses: { ...botFighter.abilityUses, [healAbility.id]: currentUses + 1 },
+        };
+        
+        const targetMember = newBotTeam[healTarget.index];
+        const newHealth = Math.min(targetMember.fighter.maxHealth, targetMember.currentHealth + healAmount);
+        newBotTeam[healTarget.index] = {
+          ...targetMember,
+          currentHealth: newHealth,
+          fighter: { ...targetMember.fighter, currentHealth: newHealth },
+        };
+        
+        // Tick frozen turns
+        const tickedBotTeam = tickFrozenTurns(newBotTeam);
+        
+        return {
+          ...prev,
+          opponent: { ...prev.opponent, team: tickedBotTeam },
+          turn: 'player',
+          battleLog: [...prev.battleLog, `💚 ${botFighter.fighter.name} uses ${healAbility.name} to heal ${targetMember.fighter.name} for ${healAmount} HP!`],
+        };
+      }
+      
       const ability = attackAbilities.length > 0 
         ? attackAbilities[Math.floor(Math.random() * attackAbilities.length)]
-        : botFighter.fighter.abilities[0];
+        : defenseAbilities.length > 0 
+          ? defenseAbilities[0]
+          : usableAbilities[0];
+
+      // Track bot ability usage
+      const newBotTeam = [...prev.opponent.team];
+      const currentUses = botFighter.abilityUses[ability.id] || 0;
+      newBotTeam[botIndex] = {
+        ...botFighter,
+        abilityUses: { ...botFighter.abilityUses, [ability.id]: currentUses + 1 },
+      };
+      const updatedState = { ...prev, opponent: { ...prev.opponent, team: newBotTeam } };
       
       // Find alive player fighters to target
       const alivePlayerFighters = prev.player.team
@@ -317,28 +515,35 @@ export const useBattle = () => {
       
       if (alivePlayerFighters.length === 0) return prev;
       
+      // For freeze, target non-frozen fighters preferably
+      let targetPool = alivePlayerFighters;
+      if (ability.type === 'freeze') {
+        const nonFrozen = alivePlayerFighters.filter(({ member }) => member.frozenTurns <= 0);
+        if (nonFrozen.length > 0) targetPool = nonFrozen;
+      }
+      
       const { member: targetMember, index: targetIndex } = 
-        alivePlayerFighters[Math.floor(Math.random() * alivePlayerFighters.length)];
+        targetPool[Math.floor(Math.random() * targetPool.length)];
       
       if (ability.type === 'defense') {
-        // Bot uses defense
-        const newBotTeam = [...prev.opponent.team];
         newBotTeam[botIndex] = {
-          ...botFighter,
+          ...newBotTeam[botIndex],
           fighter: { ...botFighter.fighter, hasShield: true },
         };
         
+        const tickedBotTeam = tickFrozenTurns(newBotTeam);
+        
         return {
-          ...prev,
-          opponent: { ...prev.opponent, team: newBotTeam },
+          ...updatedState,
+          opponent: { ...updatedState.opponent, team: tickedBotTeam },
           turn: 'player',
           battleLog: [...prev.battleLog, `${botFighter.fighter.name} uses ${ability.name}!`],
         };
       }
       
-      // Bot attacks - show defense choice popup to player!
+      // Bot attacks or freezes — show defense choice popup to player!
       const pendingAttack: PendingAttack = {
-        attacker: botFighter,
+        attacker: newBotTeam[botIndex],
         target: targetMember,
         ability,
         attackerIndex: botIndex,
@@ -347,10 +552,10 @@ export const useBattle = () => {
       };
       
       return {
-        ...prev,
+        ...updatedState,
         pendingAttack,
         phase: 'defense_choice',
-        battleLog: [...prev.battleLog, `${botFighter.fighter.name} is attacking ${targetMember.fighter.name}!`],
+        battleLog: [...prev.battleLog, `${botFighter.fighter.name} is ${ability.type === 'freeze' ? 'freezing' : 'attacking'} ${targetMember.fighter.name}!`],
       };
     });
   }, []);

@@ -66,6 +66,7 @@ const createTeamMember = (fighter: FruitFighter): TeamMember => ({
   isAlive: true,
   cooldowns: {},
   abilityUses: {},
+  frozenTurns: 0,
 });
 
 // Transform DB state to local player's view
