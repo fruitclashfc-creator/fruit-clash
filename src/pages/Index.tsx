@@ -237,6 +237,10 @@ const Index = () => {
             onNavigate={handleNavigate}
             onLogout={handleLogout}
             onStartBattle={handleStartBattle}
+            onAvatarUpdate={async (avatarUrl) => {
+              setPlayer(prev => ({ ...prev, avatarUrl }));
+              await updateProfile({ avatar_url: avatarUrl });
+            }}
           />
         )}
         
