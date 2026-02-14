@@ -34,7 +34,7 @@ export const TeamSelectScreen = ({ onTeamSelected, onNavigate }: TeamSelectScree
   };
 
   return (
-    <div className="min-h-screen flex flex-col p-4 animate-slide-up">
+    <div className="min-h-screen min-h-[100dvh] flex flex-col p-3 sm:p-4 animate-slide-up safe-area-inset">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <GameButton variant="ghost" size="icon" onClick={() => onNavigate('lobby')}>

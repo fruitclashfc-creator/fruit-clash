@@ -50,7 +50,7 @@ export const LobbyScreen = ({ player, onNavigate, onLogout, onStartBattle, onAva
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-between p-4 pb-8 animate-slide-up">
+    <div className="min-h-screen min-h-[100dvh] flex flex-col items-center justify-between p-3 sm:p-4 pb-6 animate-slide-up safe-area-inset">
       {/* Hidden file input */}
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
 
@@ -125,7 +125,7 @@ export const LobbyScreen = ({ player, onNavigate, onLogout, onStartBattle, onAva
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-lg py-8">
         {/* Title */}
         <div className="text-center mb-8">
-          <h1 className="font-game-title text-5xl md:text-6xl text-glow-orange text-primary mb-2">
+          <h1 className="font-game-title text-4xl sm:text-5xl md:text-6xl text-glow-orange text-primary mb-2">
             FRUIT CLASH
           </h1>
           <p className="text-muted-foreground font-game-heading">
