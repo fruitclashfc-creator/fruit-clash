@@ -262,7 +262,7 @@ export const BattleScreen = ({
 
   return (
     <div className={cn(
-      'min-h-screen flex flex-col p-3 animate-slide-up',
+      'min-h-screen min-h-[100dvh] flex flex-col p-2 sm:p-3 animate-slide-up safe-area-inset',
       screenShake && 'animate-screen-shake'
     )}>
       {/* Battle Animations Layer */}
