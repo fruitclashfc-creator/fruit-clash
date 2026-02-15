@@ -2,18 +2,19 @@ import { useState } from 'react';
 import { GameButton } from '@/components/ui/game-button';
 import { FruitFighter, GameScreen } from '@/types/game';
 import { FRUIT_FIGHTERS, getRarityColor } from '@/data/fighters';
-import { ArrowLeft, Check, Users } from 'lucide-react';
+import { ArrowLeft, Check, Users, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HealthBar } from '@/components/HealthBar';
 
 interface TeamSelectScreenProps {
   onTeamSelected: (team: FruitFighter[]) => void;
   onNavigate: (screen: GameScreen) => void;
+  ownedFighterIds?: string[];
 }
 
 const TEAM_SIZE = 6;
 
-export const TeamSelectScreen = ({ onTeamSelected, onNavigate }: TeamSelectScreenProps) => {
+export const TeamSelectScreen = ({ onTeamSelected, onNavigate, ownedFighterIds }: TeamSelectScreenProps) => {
   const [selectedTeam, setSelectedTeam] = useState<FruitFighter[]>([]);
   const [selectedForDetails, setSelectedForDetails] = useState<FruitFighter | null>(null);
 
@@ -84,7 +85,8 @@ export const TeamSelectScreen = ({ onTeamSelected, onNavigate }: TeamSelectScree
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
           {FRUIT_FIGHTERS.map(fighter => {
             const isSelected = selectedTeam.some(f => f.id === fighter.id);
-            const isDisabled = !isSelected && selectedTeam.length >= TEAM_SIZE;
+            const isOwned = !ownedFighterIds || ownedFighterIds.includes(fighter.id);
+            const isDisabled = (!isSelected && selectedTeam.length >= TEAM_SIZE) || !isOwned;
             
             return (
               <div
@@ -96,7 +98,8 @@ export const TeamSelectScreen = ({ onTeamSelected, onNavigate }: TeamSelectScree
                   'flex flex-col items-center',
                   isSelected && 'border-primary bg-primary/10 scale-105',
                   !isSelected && !isDisabled && 'border-border hover:border-primary/50',
-                  isDisabled && 'opacity-40 cursor-not-allowed'
+                  isDisabled && 'opacity-40 cursor-not-allowed',
+                  !isOwned && 'grayscale'
                 )}
               >
                 {isSelected && (
@@ -104,7 +107,11 @@ export const TeamSelectScreen = ({ onTeamSelected, onNavigate }: TeamSelectScree
                     <Check className="w-3 h-3 text-primary-foreground" />
                   </div>
                 )}
-                
+                {!isOwned && (
+                  <div className="absolute -top-2 -right-2 bg-muted rounded-full p-1">
+                    <Lock className="w-3 h-3 text-muted-foreground" />
+                  </div>
+                )}
                 <div className={cn(
                   'w-14 h-14 rounded-xl flex items-center justify-center bg-gradient-to-br',
                   fighter.color

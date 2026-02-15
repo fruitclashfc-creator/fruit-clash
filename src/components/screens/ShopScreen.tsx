@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 interface ShopScreenProps {
   player: Player;
   onNavigate: (screen: GameScreen) => void;
-  onPurchaseBox: (cost: number, gems: number, fruitRarity: Rarity) => void;
+  onPurchaseBox: (cost: number, gems: number, fruitRarity: Rarity, fighterId?: string) => void;
 }
 
 const RARITY_ORDER: Rarity[] = ['common', 'rare', 'epic', 'mythic', 'legendary'];
@@ -102,7 +102,7 @@ export const ShopScreen = ({ player, onNavigate, onPurchaseBox }: ShopScreenProp
               setOpeningResult({ ...result, fighter });
               setStarDropPhase(null);
               setIsOpening(false);
-              onPurchaseBox(box.cost, result.gems, result.fruit);
+              onPurchaseBox(box.cost, result.gems, result.fruit, fighter.id);
             }, 1200);
           } else {
             setTimeout(slowCycle, speed);
