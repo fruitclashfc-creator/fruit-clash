@@ -11,6 +11,7 @@ import { LevelUpNotification } from '@/components/LevelUpNotification';
 import { BattleRewardsPopup } from '@/components/BattleRewardsPopup';
 import { useBattle } from '@/hooks/useBattle';
 import { useAuth } from '@/hooks/useAuth';
+import { useInventory } from '@/hooks/useInventory';
 import { Player, GameScreen, FruitFighter, BattleRewards, Rarity } from '@/types/game';
 import { calculateLevel } from '@/components/LevelProgress';
 import { Loader2 } from 'lucide-react';
@@ -18,17 +19,19 @@ import { Loader2 } from 'lucide-react';
 // Extended GameScreen type to include profile
 type ExtendedGameScreen = GameScreen | 'profile';
 
-// Reward amounts
-const VICTORY_THUNDER = 30;
-const DEFEAT_THUNDER = 10;
-const VICTORY_GEMS = 5;
-const DEFEAT_GEMS = 1;
+// Reward amounts - higher rewards
+const VICTORY_THUNDER = 60;
+const DEFEAT_THUNDER = 25;
+const VICTORY_GEMS = 12;
+const DEFEAT_GEMS = 4;
 
 const Index = () => {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading, updateProfile, signOut } = useAuth();
+  const { grantStarterFruits, addFighter, getOwnedFighters, refetch: refetchInventory } = useInventory(user?.id ?? null);
   
   const [currentScreen, setCurrentScreen] = useState<ExtendedGameScreen>('lobby');
+  const [starterGranted, setStarterGranted] = useState(false);
   const [levelUpNotification, setLevelUpNotification] = useState<number | null>(null);
   const [battleRewards, setBattleRewards] = useState<BattleRewards | null>(null);
   
@@ -67,6 +70,14 @@ const Index = () => {
       }));
     }
   }, [profile]);
+
+  // Grant starter fruits on first login
+  useEffect(() => {
+    if (user && !starterGranted) {
+      grantStarterFruits();
+      setStarterGranted(true);
+    }
+  }, [user, starterGranted, grantStarterFruits]);
 
   const { 
     battleState, 
@@ -161,7 +172,7 @@ const Index = () => {
     });
   }, [player.thunderPoints, player.gems, updateProfile]);
 
-  const handlePurchaseBox = useCallback(async (cost: number, gemsReceived: number, _fruitRarity: Rarity) => {
+  const handlePurchaseBox = useCallback(async (cost: number, gemsReceived: number, _fruitRarity: Rarity, fighterId?: string) => {
     const newThunder = player.thunderPoints - cost;
     const newGems = player.gems + gemsReceived;
     
@@ -171,11 +182,16 @@ const Index = () => {
       gems: newGems,
     }));
 
+    // Save fighter to inventory
+    if (fighterId) {
+      await addFighter(fighterId);
+    }
+
     await updateProfile({
       thunder_points: newThunder,
       gems: newGems,
     });
-  }, [player.thunderPoints, player.gems, updateProfile]);
+  }, [player.thunderPoints, player.gems, updateProfile, addFighter]);
 
   const handleLogout = useCallback(async () => {
     await signOut();
@@ -254,6 +270,7 @@ const Index = () => {
           <TeamSelectScreen
             onTeamSelected={handleTeamSelected}
             onNavigate={handleNavigate}
+            ownedFighterIds={getOwnedFighters().map(f => f.id)}
           />
         )}
         
