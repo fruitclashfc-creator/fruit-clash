@@ -7,17 +7,17 @@ import { BattleScreen } from '@/components/screens/BattleScreen';
 import { SettingsScreen } from '@/components/screens/SettingsScreen';
 import { ProfileScreen } from '@/components/screens/ProfileScreen';
 import { ShopScreen } from '@/components/screens/ShopScreen';
+import { LeaderboardScreen } from '@/components/screens/LeaderboardScreen';
+import { AdminScreen } from '@/components/screens/AdminScreen';
 import { LevelUpNotification } from '@/components/LevelUpNotification';
 import { BattleRewardsPopup } from '@/components/BattleRewardsPopup';
 import { useBattle } from '@/hooks/useBattle';
 import { useAuth } from '@/hooks/useAuth';
+import { useAdmin } from '@/hooks/useAdmin';
 import { useInventory } from '@/hooks/useInventory';
 import { Player, GameScreen, FruitFighter, BattleRewards, Rarity } from '@/types/game';
 import { calculateLevel } from '@/components/LevelProgress';
 import { Loader2 } from 'lucide-react';
-
-// Extended GameScreen type to include profile
-type ExtendedGameScreen = GameScreen | 'profile';
 
 // Reward amounts - higher rewards
 const VICTORY_THUNDER = 60;
@@ -28,9 +28,10 @@ const DEFEAT_GEMS = 4;
 const Index = () => {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading, updateProfile, signOut } = useAuth();
+  const { isAdmin } = useAdmin(user?.id ?? null);
   const { grantStarterFruits, addFighter, getOwnedFighters, refetch: refetchInventory } = useInventory(user?.id ?? null);
   
-  const [currentScreen, setCurrentScreen] = useState<ExtendedGameScreen>('lobby');
+  const [currentScreen, setCurrentScreen] = useState<GameScreen>('lobby');
   const [starterGranted, setStarterGranted] = useState(false);
   const [levelUpNotification, setLevelUpNotification] = useState<number | null>(null);
   const [battleRewards, setBattleRewards] = useState<BattleRewards | null>(null);
@@ -103,7 +104,7 @@ const Index = () => {
     setCurrentScreen('battle');
   }, [startBattle]);
 
-  const handleNavigate = useCallback((screen: ExtendedGameScreen) => {
+  const handleNavigate = useCallback((screen: GameScreen) => {
     setCurrentScreen(screen);
   }, []);
 
@@ -253,6 +254,7 @@ const Index = () => {
             onNavigate={handleNavigate}
             onLogout={handleLogout}
             onStartBattle={handleStartBattle}
+            isAdmin={isAdmin}
             onAvatarUpdate={async (avatarUrl) => {
               setPlayer(prev => ({ ...prev, avatarUrl }));
               await updateProfile({ avatar_url: avatarUrl });
@@ -290,12 +292,12 @@ const Index = () => {
         )}
         
         {currentScreen === 'settings' && (
-          <SettingsScreen onNavigate={handleNavigate as (screen: GameScreen) => void} />
+          <SettingsScreen onNavigate={handleNavigate} userId={user?.id} />
         )}
 
         {currentScreen === 'profile' && (
           <ProfileScreen 
-            onNavigate={handleNavigate as (screen: GameScreen) => void}
+            onNavigate={handleNavigate}
             profile={profile}
             onProfileUpdate={handleProfileUpdate}
           />
@@ -306,6 +308,20 @@ const Index = () => {
             player={player}
             onNavigate={handleNavigate}
             onPurchaseBox={handlePurchaseBox}
+          />
+        )}
+
+        {currentScreen === 'leaderboard' && (
+          <LeaderboardScreen
+            onNavigate={handleNavigate}
+            currentUserId={user?.id}
+          />
+        )}
+
+        {currentScreen === 'admin' && user && (
+          <AdminScreen
+            onNavigate={handleNavigate}
+            userId={user.id}
           />
         )}
       </div>

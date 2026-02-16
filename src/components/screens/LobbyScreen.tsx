@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { GameButton } from '@/components/ui/game-button';
 import { Player, GameScreen } from '@/types/game';
-import { Swords, Settings, LogOut, Zap, Gem, ShoppingBag, Camera, Loader2 } from 'lucide-react';
+import { Swords, Settings, LogOut, Zap, Gem, ShoppingBag, Camera, Loader2, Trophy, Crown } from 'lucide-react';
 import { LevelProgress } from '@/components/LevelProgress';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -12,9 +12,10 @@ interface LobbyScreenProps {
   onLogout?: () => void;
   onStartBattle: () => void;
   onAvatarUpdate?: (avatarUrl: string) => void;
+  isAdmin?: boolean;
 }
 
-export const LobbyScreen = ({ player, onNavigate, onLogout, onStartBattle, onAvatarUpdate }: LobbyScreenProps) => {
+export const LobbyScreen = ({ player, onNavigate, onLogout, onStartBattle, onAvatarUpdate, isAdmin }: LobbyScreenProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -165,7 +166,7 @@ export const LobbyScreen = ({ player, onNavigate, onLogout, onStartBattle, onAva
 
       {/* Bottom Navigation */}
       <div className="w-full max-w-lg">
-        <div className="flex justify-center gap-3">
+        <div className="flex justify-center gap-3 flex-wrap">
           <GameButton 
             variant="ghost" 
             size="lg"
@@ -185,11 +186,30 @@ export const LobbyScreen = ({ player, onNavigate, onLogout, onStartBattle, onAva
           <GameButton 
             variant="ghost" 
             size="lg"
+            onClick={() => onNavigate('leaderboard')}
+          >
+            <Trophy className="w-5 h-5" />
+            Ranks
+          </GameButton>
+          <GameButton 
+            variant="ghost" 
+            size="lg"
             onClick={() => onNavigate('settings')}
           >
             <Settings className="w-5 h-5" />
             Settings
           </GameButton>
+          {isAdmin && (
+            <GameButton 
+              variant="ghost" 
+              size="lg"
+              onClick={() => onNavigate('admin')}
+              className="text-primary"
+            >
+              <Crown className="w-5 h-5" />
+              Admin
+            </GameButton>
+          )}
         </div>
       </div>
     </div>
