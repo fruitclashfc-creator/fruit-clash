@@ -127,4 +127,4 @@ export interface BattleState {
   selectedFighterIndex: number | null;
 }
 
-export type GameScreen = 'lobby' | 'fighters' | 'team-select' | 'battle' | 'settings' | 'shop';
+export type GameScreen = 'lobby' | 'fighters' | 'team-select' | 'battle' | 'settings' | 'shop' | 'leaderboard' | 'admin' | 'profile';
