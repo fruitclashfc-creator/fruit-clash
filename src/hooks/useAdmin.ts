@@ -79,6 +79,10 @@ export const useAdmin = (userId: string | null) => {
     return adminAction('change_password', { user_id, new_password });
   }, [adminAction]);
 
+  const removeFighter = useCallback(async (user_id: string, fighter_id: string) => {
+    return adminAction('remove_fighter', { user_id, fighter_id });
+  }, [adminAction]);
+
   return {
     isAdmin,
     loading,
@@ -88,5 +92,6 @@ export const useAdmin = (userId: string | null) => {
     addFighter,
     grantAllFighters,
     changePassword,
+    removeFighter,
   };
 };

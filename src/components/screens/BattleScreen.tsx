@@ -123,6 +123,15 @@ export const BattleScreen = ({
   };
 
   const handleAbilitySelect = (abilityIndex: number, ability: Ability) => {
+    // Defense abilities auto-apply without needing a target
+    if (ability.type === 'defense') {
+      if (selectedFighterIndex !== null) {
+        onUseAbility(abilityIndex, selectedFighterIndex);
+        setShowAbilityPopup(false);
+        setSelectedAbility(null);
+      }
+      return;
+    }
     setSelectedAbility({ index: abilityIndex, ability });
   };
 

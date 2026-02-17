@@ -33,6 +33,7 @@ export const LeaderboardScreen = ({ onNavigate, currentUserId }: LeaderboardScre
   const [players, setPlayers] = useState<LeaderboardPlayer[]>([]);
   const [sortBy, setSortBy] = useState<SortBy>('wins');
   const [loading, setLoading] = useState(true);
+  const [viewingAvatar, setViewingAvatar] = useState<{ name: string; url: string } | null>(null);
 
   const fetchLeaderboard = async () => {
     const orderCol = sortBy === 'wins' ? 'total_wins' : sortBy === 'level' ? 'level' : sortBy === 'thunder' ? 'thunder_points' : 'gems';
@@ -118,7 +119,10 @@ export const LeaderboardScreen = ({ onNavigate, currentUserId }: LeaderboardScre
             )}>
               {getMedalEmoji(i)}
             </div>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center text-lg overflow-hidden">
+            <div
+              className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center text-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+              onClick={() => p.avatar_url && setViewingAvatar({ name: p.name, url: p.avatar_url })}
+            >
               {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : '🎮'}
             </div>
             <div className="flex-1 min-w-0">
@@ -137,6 +141,16 @@ export const LeaderboardScreen = ({ onNavigate, currentUserId }: LeaderboardScre
           </div>
         ))}
       </div>
+
+      {/* Avatar Viewer Modal */}
+      {viewingAvatar && (
+        <div className="fixed inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setViewingAvatar(null)}>
+          <div className="relative max-w-sm mx-4">
+            <img src={viewingAvatar.url} alt={viewingAvatar.name} className="w-64 h-64 rounded-2xl object-cover border-4 border-primary" />
+            <p className="text-center mt-3 font-game-heading text-foreground">{viewingAvatar.name}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
