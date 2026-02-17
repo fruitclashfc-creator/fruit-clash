@@ -160,6 +160,19 @@ Deno.serve(async (req) => {
         });
       }
 
+      case "remove_fighter": {
+        const { user_id, fighter_id } = params;
+        await adminClient
+          .from("player_inventory")
+          .delete()
+          .eq("user_id", user_id)
+          .eq("item_id", fighter_id)
+          .eq("item_type", "fighter");
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       case "list_players": {
         const { data, error } = await adminClient
           .from("profiles")

@@ -532,6 +532,28 @@ export const FRUIT_FIGHTERS: FruitFighter[] = [
     emoji: '🔮',
     color: 'from-cyan-400 to-purple-600',
   },
+  // NEW: Titan - Ultimate Legendary
+  {
+    id: 'titan',
+    name: 'Titan',
+    fruitType: 'dragon',
+    rarity: 'legendary',
+    health: 750,
+    maxHealth: 750,
+    attack: 50,
+    defense: 30,
+    speed: 15,
+    abilities: [
+      createAbility('titan-1', 'Titan Fist', 'attack', 50, 0, 'A devastating punch from the titan', 0, { maxUses: 5 }),
+      createAbility('titan-2', 'Titan Guard', 'defense', 0, 65, 'Impenetrable titan armor', 0, { maxUses: 2 }),
+      createAbility('titan-3', 'Annihilation Beam', 'special', 1000, 0, 'An unstoppable beam that obliterates any fruit instantly. Cannot be defended.', 6, {
+        unstoppable: true,
+        maxUses: 1,
+      }),
+    ],
+    emoji: '⚜️',
+    color: 'from-yellow-400 to-red-700',
+  },
 ];
 
 export const getRandomFighter = (): FruitFighter => {
